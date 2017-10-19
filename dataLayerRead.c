@@ -26,6 +26,9 @@
 FILE * file;
 volatile int STOP=FALSE;
 
+char filename;
+int filesize;
+
 int main(int argc, char** argv)
 {
     int fd,c, res;
@@ -134,6 +137,11 @@ void processframe(int fd, char* buf, int n) {
 
   char r = 0x00;
 
+  if (buf[2] == NS0)
+    r = NR1;
+  else
+    r = NR0;
+
   if (hasErrors(buf)) {
       frwrite(fd, REJ, r);
       return;
@@ -159,6 +167,7 @@ void processframe(int fd, char* buf, int n) {
 				STOP = TRUE;
 		}
 	}
+
 	else {
 		processInformationFrame(fd, buf);
 	}
@@ -175,17 +184,28 @@ void processInformationFrame(int fd, char* buf) {
     r = NR0;
 
 	// Control Start
-	if (buf[0] == CONTROL_PACKET_START) {
+	if (buf[4] == CONTROL_PACKET_START) { // We chose the first T to be filename, and the second to be size
+		int nameSize = (int)strtol(buf[6], NULL, 0);
 
+		memcpy(filename, buf + 7, nameSize * sizeof(char)); 
+		int nextPos = nameSize * sizeof(char);		
+
+		int fileInformationSize = (int)strtol(buf[nextPos+1], NULL, 0);
+		char fileBuffer[fileInformationSize];
+
+		memcpy(fileBuffer, buf+ nextPos+2, fileInformationSize * sizeof(char)); 
+		(int)strtol(buf[6], NULL, 0);
+		
+			
 	}
 	// Control End
-	else if (buf[0] == CONTROL_PACKET_END) {
+	else if (buf[4] == CONTROL_PACKET_END) {
 
 	}
-  // Data Packet
+	  // Data Packet
   else {
-    // Write on the file data size
-    frwrite(fd, RR, r);
+    	// Write on the file data size
+    	frwrite(fd, RR, r);
   }
 }
 
