@@ -33,8 +33,8 @@ int baudRate;/*Velocidade de transmissão*/
 unsigned int sequenceNumber;   /*Número de sequência da trama: 0, 1*/
 unsigned int timeout;/*Valor do temporizador: 1 s*/
 unsigned int numTransmissions; /*Número de tentativas em caso de falha*/
-char frame[MAX_SIZE];/*Trama*/
-}
+//char frame[MAX_SIZE];/*Trama*/
+};
 
 void processframe(int fd, char* buf, int n);
 
@@ -42,13 +42,12 @@ int frread(int fd, unsigned char * buf, int maxlen);
 
 void frwrite(int fd, char state, int n);
 
-
 void incCounter();
 
 int llopen(int fd);
 
 int llclose(int fd);
 
-int llwrite(int fd,int file);
+int llwrite(int fd,FILE* file);
 
 #endif

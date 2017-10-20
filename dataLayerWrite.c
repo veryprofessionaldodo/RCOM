@@ -72,7 +72,7 @@ void noInformationFrameWrite(int fd, char state, int n) {
             toWrite[0] = FLAG; toWrite[1] = 0x01; toWrite[2] = state; toWrite[3] = state^0x01; toWrite[4] = FLAG;}
 
 	    write(fd, toWrite, sizeof(toWrite));
-    
+
 }
 
 
@@ -86,6 +86,7 @@ void incCounter(){
 }
 
 int llopen(int fd){
+	printf("Entrei no llopen\n");
 	int c = -1;
 	char buf[255];
 	serialPortFD = fd;
@@ -118,15 +119,33 @@ int llclose(int fd){
 	 return c;
 }
 
-int llwrite(int fd,int file){
+int llwrite(int fd,char* buf){
+printf("Entrei no llwrite \n");
 
-  
-
-
+// Xor BCC2, stuff, fazer trama
 
 	return 0;
 }
 
-int stuff(){
+int stuff(unsigned char *buf){
+	unsigned char* stuffedBuffer ;
+	int i;
+	for (i = 0; i < sizeof(buf); i++) {
+		if (buf[i] == 0x7e) { // Needs to be stuffed, it's an escape flag
+			realloc(buf, sizeof(buf) + sizeof(unsigned char*));
+			memmove(buf + i + 1, buf + i, sizeof(buf)- i);
+			buf[i] = 0x7d;
+			buf[i+1] = 0x5e;
+		}
+		if (buf[i] == 0x7d) { // Needs to be stuffed, it's an escape flag
+			realloc(buf, sizeof(buf) + sizeof(unsigned char*));
+			memmove(buf + i + 1, buf + i, sizeof(buf)- i);
+			buf[i] = 0x7d;
+			buf[i+1] = 0x5d;
+		}
 
+	}
+	//printf("Entrei no stuff: %s\n",buf);
+
+return 0;
 }
