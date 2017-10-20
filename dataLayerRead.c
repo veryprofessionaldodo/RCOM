@@ -1,15 +1,7 @@
 /*Non-Canonical Input Processing*/
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <termios.h>
-#include <stdio.h>
+#include "dataLayerRead.h"
 
-#define BAUDRATE B38400
-#define _POSIX_SOURCE 1 /* POSIX compliant source */
-#define FALSE 0
-#define TRUE 1
 #define FLAG 0x7e
 #define SET 0x03
 #define DISC 0x0B
@@ -23,83 +15,53 @@
 #define CONTROL_PACKET_START 2
 #define CONTROL_PACKET_END 3
 
+#define CONNECTING 1
+#define READING 2
+#define CLOSING 3
+#define CLOSED 4
+
 FILE * file;
 volatile int STOP=FALSE;
 
 char filename;
 int filesize;
 
-int main(int argc, char** argv)
-{
-    int fd,c, res;
-    struct termios oldtio,newtio;
-    char buf[255];
 
-    if ( (argc < 2) || 
-  	     ((strcmp("/dev/ttyS0", argv[1])!=0) && 
-  	      (strcmp("/dev/ttyS1", argv[1])!=0) )) {
-      printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
-      exit(1);
+int llopen(int fd) {
+  int res;
+  while (STOP==FALSE) {
+    char buf[255];   /* loop for input */
+    res = frread(fd,buf,sizeof(buf));   /* returns after 5 chars have been input */
+
+    // If received a set,
+    if (res == CONNECTING)
+      frwrite(fd, UA, 0x00);
+  }
+  STOP = FALSE;
+  return 0;
+}
+
+int llread(int fd) {
+  int res;
+  while (STOP==FALSE) {
+    char buf[255];   /* loop for input */
+    res = frread(fd,buf,sizeof(buf));   /* returns after 5 chars have been input */
+
+    if (res == CLOSING) {
+      frwrite(fd, DISC, 0x00);
     }
+  }
+  STOP = FALSE;
+  return 0;
+}
 
-
-  /*
-    Open serial port device for reading and writing and not as controlling tty
-    because we don't want to get killed if linenoise sends CTRL-C.
-  */
-  
-    
-    fd = open(argv[1], O_RDWR | O_NOCTTY );
-    if (fd <0) {perror(argv[1]); exit(-1); }
-
-    if ( tcgetattr(fd,&oldtio) == -1) { /* save current port settings */
-      perror("tcgetattr");
-      exit(-1);
-    }
-
-    bzero(&newtio, sizeof(newtio));
-    newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
-    newtio.c_iflag = IGNPAR;
-    newtio.c_oflag = 0;
-
-    /* set input mode (non-canonical, no echo,...) */
-    newtio.c_lflag = 0;
-
-    newtio.c_cc[VTIME]    = 0;   /* inter-character timer unused */
-    newtio.c_cc[VMIN]     = 5;   /* blocking read until 5 chars received */
-
-
-
-  /* 
-    VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a 
-    leitura do(s) próximo(s) caracter(es)
-  */
-
-
-
-    tcflush(fd, TCIOFLUSH);
-
-    if ( tcsetattr(fd,TCSANOW,&newtio) == -1) {
-      perror("tcsetattr");
-      exit(-1);
-    }
-
-    printf("New termios structure set\n");
-
-
-
-    while (STOP==FALSE) {
-         char buf[255];   /* loop for input */
-	     res = frread(fd,buf,sizeof(buf));   /* returns after 5 chars have been input */
-	}
-  /*
-    O ciclo WHILE deve ser alterado de modo a respeitar o indicado no gui�o
-  */
-
-
-    tcsetattr(fd,TCSANOW,&oldtio);
-    close(fd);
-    return 0;
+int llclose(int fd) {
+  int res;
+  while (STOP==FALSE) {
+    char buf[255];   /* loop for input */
+    res = frread(fd,buf,sizeof(buf));   /* returns after 5 chars have been input */
+  }
+  return 0;
 }
 
 int frread(int fd, unsigned char * buf2, int maxlen) {
@@ -127,13 +89,13 @@ char buf[255];
 		}
 
 		if(buf[n-1] == FLAG && n > 4) {
- 			processframe(fd, buf, n);
-			return n;
+ 			int processed = processframe(fd, buf, n);
+			return processed;
 		}
 	}
 }
 
-void processframe(int fd, char* buf, int n) {
+int processframe(int fd, char* buf, int n) {
 
   char r = 0x00;
 
@@ -144,7 +106,7 @@ void processframe(int fd, char* buf, int n) {
 
   if (hasErrors(buf)) {
       frwrite(fd, REJ, r);
-      return;
+      return -1;
   }
 
 	if (n == 5) {
@@ -152,19 +114,22 @@ void processframe(int fd, char* buf, int n) {
 		if (buf[0] == FLAG && buf[1] == 0x03 && buf[2] == SET
 			&& buf[3] == SET^0x03 && buf[4] == FLAG) {
 	        printf("recebi um set\n");
-	        frwrite(fd, UA, n, 0x00);
+          STOP = TRUE;
+          return CONNECTING;
 		}
 		// Check if DISC
-		else if (buf[0] = 	= FLAG && buf[1] == 0x03 && buf[2] == DISC
+		else if (buf[0] == FLAG && buf[1] == 0x03 && buf[2] == DISC
 			&& buf[3] == DISC^0x03 && buf[4] == FLAG) {
            printf("recebi um disc\n");
-			frwrite(fd, DISC, n, 0x00);
+           STOP = TRUE;
+           return CLOSING;
 		}
 
 		// Check if UA
 		else if (buf[0] == FLAG && buf[1] == 0x01 && buf[2] == UA
 			&& buf[3] == DISC^0x01 && buf[4] == FLAG) {
 				STOP = TRUE;
+        return 0;
 		}
 	}
 
@@ -172,11 +137,13 @@ void processframe(int fd, char* buf, int n) {
 		processInformationFrame(fd, buf);
 	}
 
+  return -1;
+
 }
 
 void processInformationFrame(int fd, char* buf) {
 	// I Need to see if it's a control or data packet
-
+  printf("estou a tentar processar informação, olhem para mim que hacker que sou\n");
   char r;
   if (buf[2] == NS0)
     r = NR1;
@@ -185,18 +152,17 @@ void processInformationFrame(int fd, char* buf) {
 
 	// Control Start
 	if (buf[4] == CONTROL_PACKET_START) { // We chose the first T to be filename, and the second to be size
-		int nameSize = (int)strtol(buf[6], NULL, 0);
+    // Filename
+		int nextPos = nameSize * sizeof(char);
 
-		memcpy(filename, buf + 7, nameSize * sizeof(char)); 
-		int nextPos = nameSize * sizeof(char);		
+    int nameSize = (int)strtol(buf[6], NULL, 0);
+    memcpy(filename, buf + 7, nameSize * sizeof(char));
 
 		int fileInformationSize = (int)strtol(buf[nextPos+1], NULL, 0);
 		char fileBuffer[fileInformationSize];
 
-		memcpy(fileBuffer, buf+ nextPos+2, fileInformationSize * sizeof(char)); 
+		memcpy(fileBuffer, buf+ nextPos+2, fileInformationSize * sizeof(char));
 		(int)strtol(buf[6], NULL, 0);
-		
-			
 	}
 	// Control End
 	else if (buf[4] == CONTROL_PACKET_END) {
@@ -217,7 +183,7 @@ int hasErrors(char * buf) {
 }
 
 void frwrite(int fd, char state, char NR) {
-	unsigned char toWrite[5];	
+	unsigned char toWrite[5];
 
 		// Isn't information frame
 	if (state == UA) {
@@ -225,13 +191,30 @@ void frwrite(int fd, char state, char NR) {
     	toWrite[0] = FLAG; toWrite[1] = 0x03; toWrite[2] = state; toWrite[3] = state^0x03; toWrite[4] = FLAG;
 	}
 	else if (state == DISC) {
-    	printf("mandei um DISC para o fd %d\n", fd);
+  	printf("mandei um DISC para o fd %d\n", fd);
 		toWrite[0] = FLAG; toWrite[1] = 0x01; toWrite[2] = state; toWrite[3] = state^0x01; toWrite[4] = FLAG;
 	}
   else if (state == RR || state == REJ) {
     toWrite[0] = FLAG; toWrite[1] = 0x01; toWrite[2] = state^NR; toWrite[3] = state^0x01; toWrite[4] = FLAG;
   }
 
-
 	write(fd, toWrite, sizeof(toWrite));
+}
+
+unsigned char* destuff(unsigned char * buf) {
+  int i;
+  for (i = 0; i < sizeof(buf) - 1 * sizeof(unsigned char*); i++) {
+    if (buf[i] == 0x7d && buf[i+1] == 0x5e) {
+      buf[i] = 0x7e;
+      memmove(buf + i, buf + 2, sizeof(buf)- (i+1)*sizeof(unsigned char*));
+      realloc(buf, sizeof(buf)-sizeof(unsigned char*));
+    }
+    if (buf[i] == 0x7d && buf[i+1] == 0x5d) {
+      buf[i] = 0x7d;
+      memmove(buf + i, buf + 2, sizeof(buf)- (i+1)*sizeof(unsigned char*));
+      realloc(buf, sizeof(buf)-sizeof(unsigned char*));
+    }
+  }
+
+  return buf;
 }
