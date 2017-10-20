@@ -15,7 +15,7 @@ int main(int argc, char** argv)
   char buf[255];
   int i, sum = 0, speed = 0;
 
-  if ( (argc < 2) ||
+  if ( (argc < 3) ||
        ((strcmp("/dev/ttyS0", argv[1])!=0) &&
         (strcmp("/dev/ttyS1", argv[1])!=0) )) {
     printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
@@ -29,7 +29,7 @@ int main(int argc, char** argv)
 */
 
 FILE *file;
-file = fopen("test.txt", "r");
+file = fopen(argv[2], "r");
   if (file == NULL) {
   perror ("Error opening file");
 printf("ERROR in llwrite! \n");
@@ -61,8 +61,6 @@ printf("ERROR in llwrite! \n");
   VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
   leitura do(s) próximo(s) caracter(es)
 */
-
-
 
   tcflush(fd, TCIOFLUSH);
 
