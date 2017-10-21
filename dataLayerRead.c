@@ -42,7 +42,7 @@ void frwrite(int fd, char state, char NR) {
 }
 
 
-void processframe(int fd, char* buf, int n) {
+int processframe(int fd, char* buf, int n) {
 
   char r = 0x00;
 
@@ -62,24 +62,29 @@ void processframe(int fd, char* buf, int n) {
 		if (buf[0] == FLAG && buf[1] == 0x03 && buf[2] == SET
 			&& buf[3] == SET^0x03 && buf[4] == FLAG) {
 	        printf("recebi um set\n");
-          STOP = TRUE;
+	        STOP = TRUE;
+			return;
 		}
 		// Check if DISC
 		else if (buf[0] == FLAG && buf[1] == 0x03 && buf[2] == DISC
 			&& buf[3] == DISC^0x03 && buf[4] == FLAG) {
            printf("recebi um disc\n");
            STOP = TRUE;
+           return;
 		}
 
 		// Check if UA
 		else if (buf[0] == FLAG && buf[1] == 0x01 && buf[2] == UA
 			&& buf[3] == DISC^0x01 && buf[4] == FLAG) {
-				STOP = TRUE;
+			 STOP = TRUE;
+			return;
 		}
 	}
 	else {
 		processInformationFrame(fd, buf);
 	}
+
+	return 0;
 
 }
 
@@ -101,38 +106,13 @@ void processInformationFrame(int fd, char* buf) {
     printf("namesize %i\n", nameSize);
     memcpy(&filename, &buf + 7*sizeof(char*), nameSize);
 
-
-    printf("buf[0] = %x\n",buf[0]);
-    printf("buf[1] = %x\n",buf[1]);
-    printf("buf[2] = %x\n",buf[2]);
-    printf("buf[3] = %x\n",buf[3]);
-    printf("buf[4] = %x\n",buf[4]);
-    printf("buf[5] = %x\n",buf[5]);
-    printf("buf[6] = %x\n",buf[6]);
-    printf("buf[7] = %x\n",buf[7]);
-    printf("buf[8] = %x\n",buf[8]);
-    printf("buf[9] = %x\n",buf[9]);
-    printf("buf[10] = %x\n",buf[10]);
-    printf("buf[11] = %x\n",buf[11]);
-    printf("buf[12] = %x\n",buf[12]);
-    printf("buf[13] = %x\n",buf[13]);
-    printf("buf[14] = %x\n",buf[14]);
-    printf("buf[15] = %x\n",buf[15]);
-    printf("buf[16] = %x\n",buf[16]);
-    printf("buf[17] = %x\n",buf[17]);
-    printf("buf[18] = %x\n",buf[18]);
-    printf("buf[19] = %x\n",buf[19]);
-    printf("buf[20] = %x\n",buf[20]);
-    printf("buf[21] = %x\n",buf[21]);
-    printf("buf[22] = %x\n",buf[22]);
-
     int nextPos = nameSize * sizeof(char);
 	int fileInformationSize = (int)strtol(&buf[nextPos+1], NULL, 0);
   	char fileBuffer[fileInformationSize];
 
 	memcpy(fileBuffer, buf+ nextPos+2, fileInformationSize * sizeof(char));
 
-    printf("filesize %i\n", filesize);
+    printf("filename %s\n", filename);
 
     FILE *fp = fopen(&filename, "w");
     if (fp == NULL)
@@ -182,21 +162,25 @@ int frread(int fd, unsigned char * buf2, int maxlen) {
 		}
 
 		if(buf[n-1] == FLAG && n > 4) {
- 			int processed = processframe(fd, buf, n);
-			return processed;
+ 			processframe(fd, buf, n);
+			return 0;
 		}
 	}
+	return 0;	
 }
 
 int llopen(int fd) {
   int res;
 
+  printf("entrei no open\n");
 
   while (STOP==FALSE) {
-    char buf[255]; 
-    res = frread(fd,buf,sizeof(buf));   
+    char buf[255]; 	
+    printf("merda %d\n", STOP);
+	frread(fd,buf,sizeof(buf));  
+	printf("merda %d\n", STOP); 	
   }
-
+  printf("Sai daqui, pimbas lá na cena\n");
   frwrite(fd, UA, 0x00);
 
   STOP = FALSE;
@@ -205,10 +189,11 @@ int llopen(int fd) {
 
 int llread(int fd) {
   int res;
+  printf("entrei no read\n");
 
   while (STOP==FALSE) {
     char buf[255];  
-    res = frread(fd,buf,sizeof(buf));  
+    frread(fd,buf,sizeof(buf));  
   }
 
   STOP = FALSE;
@@ -221,7 +206,7 @@ int llclose(int fd) {
 
   while (STOP==FALSE) {
     char buf[255];  
-    res = frread(fd,buf,sizeof(buf));
+    frread(fd,buf,sizeof(buf));
   }
   frwrite(fd, DISC, 0x00);
   return 0;
