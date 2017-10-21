@@ -47,7 +47,7 @@ void processframe(int fd, char* buf, int n) {
 		else { // ERROR
 
 		}
-    
+
 
 }
 
@@ -137,13 +137,9 @@ unsigned char BCC2 = 0;
 for(i = 0; i < size-1;i++){
 	BCC2 = BCC2^buf[i];
 }
-
-/*buf = realloc(buf,size*sizeof(char) + sizeof(BCC2));
-
-buf[size] = BCC2;*/
-
-stuff(buf,size);
-
+printf("yolo\n");
+stuff(buf,&size);
+printf("yolo1\n");
 unsigned char* packet = malloc(size+ 5);
 packet[0] = FLAG;
 packet[1] = 0x03;
@@ -157,42 +153,41 @@ packet[size + 4] = BCC2;
 packet[size + 5] = FLAG;
 
 
-printf("yolo\n");
-
+//waiting for response;
 	STOP = FALSE;
 	int c = -1;
 	char buf2[255];
 	alarm(3);
-  	while(counter < 3 && STOP == FALSE){
-		if(write(fd,packet,size+ 5 ) != size+ 5 ){
+  while(counter < 3 && STOP == FALSE){
+		if(write(fd,packet,size + 6 ) != size + 6 ){
 			printf("Error sending frame\n");
-		}
-		printf("yolo1\n");
+		};
 		 c = frread(fd,buf2,5);
 	 }
 	 counter = 0;
 	 return c;
 }
 
-unsigned int stuff(unsigned char *buf, unsigned int size){
+void stuff(unsigned char *buf, unsigned int* size){
 
+  int sizetmp = *size;
 	int i;
-	for (i = 0; i < size; i++) {
+	for (i = 0; i < sizetmp; i++) {
 		if (buf[i] == 0x7e) { // Needs to be stuffed, it's an escape flag
-			realloc(buf, size + sizeof(unsigned char*));
-			memmove(buf + i + 1, buf + i, size- i);
+			realloc(buf, sizetmp + sizeof(unsigned char*));
+			memmove(buf + i + 1, buf + i, sizetmp- i);
 			buf[i] = 0x7d;
 			buf[i+1] = 0x5e;
+      sizetmp++;
 		}
 		if (buf[i] == 0x7d) { // Needs to be stuffed, it's an escape flag
-			realloc(buf, size + sizeof(unsigned char*));
-			memmove(buf + i + 1, buf + i, size- i);
+			realloc(buf, sizetmp + sizeof(unsigned char*));
+			memmove(buf + i + 1, buf + i, sizetmp- i);
 			buf[i] = 0x7d;
 			buf[i+1] = 0x5d;
+      sizetmp++;
 		}
 
 	}
-	printf("%s\n",buf );
-
-return sizeof(buf);
+  *size = sizetmp;
 }

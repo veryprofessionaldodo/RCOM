@@ -131,16 +131,15 @@ int main(int argc, char** argv){
         while(!feof(file)){
         	unsigned char* buf = (unsigned char*)malloc (sizeof(unsigned char)*10);
         	fread(buf,sizeof(unsigned char*),sizeof(unsigned char*)*10,file);
-        	stuff(buf);
         	free(buf);
         }*/
 
-        
+
 
         if(llwrite(fd,CTRL_START,size) < 0)
           printf("ERROR in llwrite start! \n");
 
-
+         printf("read start : pass to end\n");
         //send ctrl end
         int size_ctrl_end = st.st_size;
         unsigned char* CTRL_END = buildControlPacket(0x03,argv[2],&size_ctrl_end);

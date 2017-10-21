@@ -56,6 +56,6 @@ int llclose(int fd);
 
 int llwrite(int fd, unsigned char* buf,int size);
 
-unsigned int stuff(unsigned char *buf, unsigned int size);
+void stuff(unsigned char *buf, unsigned int* size);
 
 #endif
