@@ -12,8 +12,8 @@
 #define NS1 0x00
 #define NR0 0x80
 #define NR1 0x00
-#define CONTROL_PACKET_START 2
-#define CONTROL_PACKET_END 3
+#define CONTROL_PACKET_START 0x02
+#define CONTROL_PACKET_END 0x03
 
 #define CONNECTING 1
 #define READING 2
@@ -23,77 +23,28 @@
 FILE * file;
 volatile int STOP=FALSE;
 
-char filename;
+char* filename;
 int filesize;
 
+void frwrite(int fd, char state, char NR) {
+	unsigned char toWrite[5];
 
-int llopen(int fd) {
-  int res;
-  while (STOP==FALSE) {
-    char buf[255];   /* loop for input */
-    res = frread(fd,buf,sizeof(buf));   /* returns after 5 chars have been input */
-
-    // If received a set,
-    if (res == CONNECTING)
-      frwrite(fd, UA, 0x00);
-  }
-  STOP = FALSE;
-  return 0;
-}
-
-int llread(int fd) {
-  int res;
-  while (STOP==FALSE) {
-    char buf[255];   /* loop for input */
-    res = frread(fd,buf,sizeof(buf));   /* returns after 5 chars have been input */
-
-    if (res == CLOSING) {
-      frwrite(fd, DISC, 0x00);
-    }
-  }
-  STOP = FALSE;
-  return 0;
-}
-
-int llclose(int fd) {
-  int res;
-  while (STOP==FALSE) {
-    char buf[255];   /* loop for input */
-    res = frread(fd,buf,sizeof(buf));   /* returns after 5 chars have been input */
-  }
-  return 0;
-}
-
-int frread(int fd, unsigned char * buf2, int maxlen) {
-	int n=0;
-	int ch;
-char buf[255];
-	while(1) {
- 		if((ch= read(fd, buf + n, 1)) <= 0) {
-			return ch; // ERROR
-		}
-
-		//printf("ceasdas %d\n", (int) buf[n]);
-
-		if(n==0 && buf[n] != FLAG)
-			continue;
-
-		if(n==1 && buf[n] == FLAG)
-			continue;
-
-		n++;
-
-		if(buf[n-1] != FLAG && n == maxlen) {
-			n=0;
-			continue;
-		}
-
-		if(buf[n-1] == FLAG && n > 4) {
- 			int processed = processframe(fd, buf, n);
-			return processed;
-		}
+		// Isn't information frame
+	if (state == UA) {
+	    printf("mandei um UA para o fd %d\n", fd);
+    	toWrite[0] = FLAG; toWrite[1] = 0x03; toWrite[2] = state; toWrite[3] = state^0x03; toWrite[4] = FLAG;
 	}
+	else if (state == DISC) {
+  	printf("mandei um DISC para o fd %d\n", fd);
+		toWrite[0] = FLAG; toWrite[1] = 0x01; toWrite[2] = state; toWrite[3] = state^0x01; toWrite[4] = FLAG;
+	}
+  else if (state == RR || state == REJ) {
+    toWrite[0] = FLAG; toWrite[1] = 0x01; toWrite[2] = state^NR; toWrite[3] = state^0x01; toWrite[4] = FLAG;
+  }
+
+	write(fd, toWrite, sizeof(toWrite));
 }
+
 
 int processframe(int fd, char* buf, int n) {
 
@@ -152,17 +103,20 @@ void processInformationFrame(int fd, char* buf) {
 
 	// Control Start
 	if (buf[4] == CONTROL_PACKET_START) { // We chose the first T to be filename, and the second to be size
+    printf("pressupostamente estou a ler um start\n");
     // Filename
-		int nextPos = nameSize * sizeof(char);
 
-    int nameSize = (int)strtol(buf[6], NULL, 0);
-    memcpy(filename, buf + 7, nameSize * sizeof(char));
+    int nameSize = buf[6];
+    printf("namesize %i\n", nameSize);
+    memcpy(&filename, &buf + 7*sizeof(char*), nameSize);
 
-		int fileInformationSize = (int)strtol(buf[nextPos+1], NULL, 0);
-		char fileBuffer[fileInformationSize];
+    int nextPos = nameSize * sizeof(char);
+		int fileInformationSize = (int)strtol(&buf[nextPos+1], NULL, 0);
+  	char fileBuffer[fileInformationSize];
 
 		memcpy(fileBuffer, buf+ nextPos+2, fileInformationSize * sizeof(char));
-		(int)strtol(buf[6], NULL, 0);
+    printf("merda3\n");
+    printf("%d \n",sizeof(filename));
 	}
 	// Control End
 	else if (buf[4] == CONTROL_PACKET_END) {
@@ -175,44 +129,95 @@ void processInformationFrame(int fd, char* buf) {
   }
 }
 
-int hasErrors(char * buf) {
+int frread(int fd, unsigned char * buf2, int maxlen) {
+	int n=0;
+	int ch;
+  char buf[255];
+	while(1) {
 
-  // See if frame has any errors
-  return FALSE;
+ 		if((ch= read(fd, buf + n, 1)) <= 0) {
+			return ch; // ERROR
+		}
 
+		//printf("ceasdas %d\n", (int) buf[n]);
+
+		if(n==0 && buf[n] != FLAG)
+			continue;
+
+		if(n==1 && buf[n] == FLAG)
+			continue;
+
+		n++;
+
+		if(buf[n-1] != FLAG && n == maxlen) {
+			n=0;
+			continue;
+		}
+
+		if(buf[n-1] == FLAG && n > 4) {
+ 			int processed = processframe(fd, buf, n);
+			return processed;
+		}
+	}
 }
 
-void frwrite(int fd, char state, char NR) {
-	unsigned char toWrite[5];
+int llopen(int fd) {
+  int res;
+  while (STOP==FALSE) {
+    char buf[255];   /* loop for input */
+    res = frread(fd,buf,sizeof(buf));   /* returns after 5 chars have been input */
 
-		// Isn't information frame
-	if (state == UA) {
-	    printf("mandei um UA para o fd %d\n", fd);
-    	toWrite[0] = FLAG; toWrite[1] = 0x03; toWrite[2] = state; toWrite[3] = state^0x03; toWrite[4] = FLAG;
-	}
-	else if (state == DISC) {
-  	printf("mandei um DISC para o fd %d\n", fd);
-		toWrite[0] = FLAG; toWrite[1] = 0x01; toWrite[2] = state; toWrite[3] = state^0x01; toWrite[4] = FLAG;
-	}
-  else if (state == RR || state == REJ) {
-    toWrite[0] = FLAG; toWrite[1] = 0x01; toWrite[2] = state^NR; toWrite[3] = state^0x01; toWrite[4] = FLAG;
+    // If received a set,
+    if (res == CONNECTING)
+      frwrite(fd, UA, 0x00);
   }
+  STOP = FALSE;
+  return 0;
+}
 
-	write(fd, toWrite, sizeof(toWrite));
+int llread(int fd) {
+  int res;
+  while (STOP==FALSE) {
+    char buf[255];   /* loop for input */
+    res = frread(fd,buf,sizeof(buf));   /* returns after 5 chars have been input */
+
+    if (res == CLOSING) {
+      frwrite(fd, DISC, 0x00);
+    }
+  }
+  STOP = FALSE;
+  return 0;
+}
+
+int llclose(int fd) {
+  int res;
+
+  while (STOP==FALSE) {
+    char buf[255];   /* loop for input */
+    res = frread(fd,buf,sizeof(buf));   /* returns after 5 chars have been input */
+  }
+  return 0;
+}
+
+
+int hasErrors(char * buf) {
+  // See if frame has any errors
+  return FALSE;
 }
 
 unsigned char* destuff(unsigned char * buf) {
   int i;
+
   for (i = 0; i < sizeof(buf) - 1 * sizeof(unsigned char*); i++) {
     if (buf[i] == 0x7d && buf[i+1] == 0x5e) {
       buf[i] = 0x7e;
-      memmove(buf + i, buf + 2, sizeof(buf)- (i+1)*sizeof(unsigned char*));
+      buf = memmove(buf + i, buf + 2, sizeof(buf)- (i+1)*sizeof(unsigned char*));
       realloc(buf, sizeof(buf)-sizeof(unsigned char*));
     }
     if (buf[i] == 0x7d && buf[i+1] == 0x5d) {
       buf[i] = 0x7d;
       memmove(buf + i, buf + 2, sizeof(buf)- (i+1)*sizeof(unsigned char*));
-      realloc(buf, sizeof(buf)-sizeof(unsigned char*));
+      buf = realloc(buf, sizeof(buf)-sizeof(unsigned char*));
     }
   }
 
