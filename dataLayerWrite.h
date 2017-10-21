@@ -7,8 +7,10 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
+#include <string.h>
 
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
@@ -19,6 +21,8 @@
 #define SET 0x03
 #define UA 0x07
 #define DISC 0x0B
+#define ESC 0x5e
+#define MAX_SIZE 256
 
 // States
 #define CONNECTING 0
@@ -33,7 +37,7 @@ int baudRate;/*Velocidade de transmissão*/
 unsigned int sequenceNumber;   /*Número de sequência da trama: 0, 1*/
 unsigned int timeout;/*Valor do temporizador: 1 s*/
 unsigned int numTransmissions; /*Número de tentativas em caso de falha*/
-//char frame[MAX_SIZE];/*Trama*/
+char frame[MAX_SIZE];/*Trama*/
 };
 
 void processframe(int fd, char* buf, int n);
@@ -48,6 +52,8 @@ int llopen(int fd);
 
 int llclose(int fd);
 
-int llwrite(int fd,FILE* file);
+int llwrite(int fd, char* buf,int size);
+
+unsigned int stuff(unsigned char *buf, unsigned int size);
 
 #endif

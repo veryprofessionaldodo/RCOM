@@ -8,8 +8,37 @@
 #define TRUE 1
 
 
-int main(int argc, char** argv)
-{
+char* buildStartPacket(char * filename,int sizeFile){
+
+  unsigned char filesize[4];
+
+  filesize[3] = (sizeFile >> 24) & 0xFF;
+  filesize[2] = (sizeFile >> 16) & 0xFF;
+  filesize[1] = (sizeFile >> 8) & 0xFF;
+  filesize[0] = sizeFile & 0xFF;
+
+
+  int size = 5 + strlen(filesize) + strlen(filename);
+  char * packet = (char *) malloc(size);
+  unsigned int i=0,pos=3;
+
+  packet[0] = 0x02;
+  packet[1] = 0x01; //filename
+  packet[2] = strlen(filename);
+
+  for(i = 0; i < strlen(filename);i++){
+    packet[pos++] = filename[i];
+  }
+
+  packet[pos++]=0x00; //filesize
+  packet[pos++]= strlen(filesize);
+  for(i = 0; i < 4; i++){
+    packet[pos++] = filesize[i];
+  }
+  return packet;
+}
+
+int main(int argc, char** argv){
   int fd,c, res;
   struct termios oldtio,newtio;
   char buf[255];
@@ -62,11 +91,12 @@ int main(int argc, char** argv)
   }
 
   printf("New termios structure set\n");
+  FILE *file;
 
     if(llopen(fd) < 0)
       printf("ERROR in llopen! \n");
       else{
-        FILE *file;
+
         file = fopen(argv[2], "r");
           if (file == NULL) {
           perror ("Error opening file");
@@ -77,15 +107,9 @@ int main(int argc, char** argv)
         //size of file
         struct stat st;
         stat(argv[2], &st);
-        unsigned long int size = st.st_size;
-        unsigned char filesize[4];
+        int size = st.st_size;
 
-filesize[0] = (size >> 24) & 0xFF;
-filesize[1] = (size >> 16) & 0xFF;
-filesize[2] = (size >> 8) & 0xFF;
-filesize[3] = size & 0xFF;
-
-        char* buf = buildStartPacket(argv[2],filesize);
+        char* CTRL_START = buildStartPacket(argv[2],size);
 
         /*int i = 0;
         while(!feof(file)){
@@ -95,7 +119,7 @@ filesize[3] = size & 0xFF;
         	free(buf);
         }*/
 
-        if(llwrite(fd,buf) < 0)
+        if(llwrite(fd,CTRL_START,sizeof(CTRL_START)) < 0)
           printf("ERROR in llwrite! \n");
         else{
          if(llclose(fd) < 0)
@@ -113,22 +137,4 @@ filesize[3] = size & 0xFF;
     close(fd);
     fclose(file);
     return 0;
-}
-
-char* buildStartPacket(char * filename,char * filesize){
-  char c[255];
-  c[0] = 0x02;
-  c[1] = 0x01; //filename
-  c[2] = sizeof(filename);
-
-  c[7] = 0x00;  //filesize
-  c[8] = sizeof(filesize);
-  c[3] = filesize[0];
-  c[4] = filesize[1];
-  c[5] = filesize[2];
-  c[6] = filesize[3];
-
-
-
-
 }
