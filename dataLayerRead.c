@@ -88,7 +88,7 @@ int processframe(int fd, char* buf, int n) {
 
 }
 
-void processInformationFrame(int fd, char* buf) {
+void processInformationFrame(int fd, unsigned char* buf) {
 	// I Need to see if it's a control or data packet
   printf("estou a tentar processar informação, olhem para mim que hacker que sou\n");
   char r;
@@ -102,23 +102,37 @@ void processInformationFrame(int fd, char* buf) {
     printf("pressupostamente estou a ler um start\n");
     // Filename
 
-    int nameSize = buf[6];
-    printf("namesize %i\n", nameSize);
-    memcpy(&filename, &buf + 7*sizeof(char*), nameSize);
-
-    int nextPos = nameSize * sizeof(char);
-	int fileInformationSize = (int)strtol(&buf[nextPos+1], NULL, 0);
-  	char fileBuffer[fileInformationSize];
-
-	memcpy(fileBuffer, buf+ nextPos+2, fileInformationSize * sizeof(char));
-
-    printf("filename %s\n", filename);
-
-    FILE *fp = fopen(&filename, "w");
-    if (fp == NULL)
-      printf("rica merda cvaralho\n");
-    else
-      fclose(fp);
+	    int nameSize = buf[6];
+	
+		filename = (unsigned char *) malloc(nameSize * sizeof(unsigned char*));
+		
+		int x;
+		for (x = 0; x < nameSize; x++) {
+			filename[x] = buf[x+7];
+			}
+    	
+		printf("buf[7] %c\n", buf[7]);
+		printf("buf[7] %c\n", buf[8]);
+			printf("buf[7] %c\n", buf[9]);
+		printf("buf[7] %c\n", buf[10]);
+		printf("buf[7] %c\n", buf[11]);
+		printf("buf[7] %c\n", buf[12]);
+		printf("buf[7] %c\n", buf[13]);
+			printf("buf[7] %c\n", buf[14]);
+	
+	    int nextPos = nameSize * sizeof(char);
+		int fileInformationSize = (int)strtol(&buf[nextPos+1], NULL, 0);
+  		char fileBuffer[fileInformationSize];
+	
+		memcpy(fileBuffer, buf+ nextPos+2, fileInformationSize * sizeof(char));
+	
+	    printf("filename %s\n", filename);
+	
+	    FILE *fp = fopen(filename, "w");
+	    if (fp == NULL)
+	      printf("rica merda cvaralho\n");
+	    else
+	      fclose(fp);
 
     //printf("%d \n",sizeof(filename));
 	}
@@ -146,7 +160,7 @@ int frread(int fd, unsigned char * buf2, int maxlen) {
 			return ch; // ERROR
 		}
 
-    	printf("ceasdas %d\n", (int) buf[n]);
+    	//printf("ceasdas %d\n", (int) buf[n]);
 
 		if(n==0 && buf[n] != FLAG)
 			continue;

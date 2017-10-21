@@ -20,7 +20,7 @@ int frread(int fd, unsigned char * buf2, int maxlen);
 
 int processframe(int fd, char* buf, int n);
 
-void processInformationFrame(int fd, char* buf);
+void processInformationFrame(int fd, unsigned char* buf);
 
 int hasErrors(char * buf);
 
