@@ -52,7 +52,7 @@ int llopen(int fd);
 
 int llclose(int fd);
 
-int llwrite(int fd, char* buf,int size);
+int llwrite(int fd, unsigned char* buf,int size);
 
 unsigned int stuff(unsigned char *buf, unsigned int size);
 

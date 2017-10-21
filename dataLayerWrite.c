@@ -122,7 +122,7 @@ int llclose(int fd){
 	 return c;
 }
 
-int llwrite(int fd, char* buf, int size){
+int llwrite(int fd, unsigned char* buf, int size){
 printf("Entrei no llwrite \n");
 
 // Xor BCC2, stuff, fazer trama
@@ -136,43 +136,45 @@ for(i = 0; i < size-1;i++){
 
 buf[size] = BCC2;*/
 
-stuff(buf,sizeof(buf));
+stuff(buf,size);
 
-unsigned char* packet = malloc(sizeof(buf)+ 5);
+unsigned char* packet = malloc(size+ 5);
 packet[0] = FLAG;
 packet[1] = 0x03;
 packet[2] = CN;
 packet[3] = packet[1]^packet[2];
-memcpy(&packet[4],buf,sizeof(buf));
+
+for(i = 0; i < size;i++){
+	packet[i+4] = buf[i];
+}
 packet[size + 4] = BCC2;
 packet[size + 5] = FLAG;
-printf("merda3 \n");
 
-if(write(fd,packet,sizeof(packet)) != sizeof(packet)){
+if(write(fd,packet,size+ 5 ) != size+ 5 ){
 	printf("Error sending frame\n");
 }
-printf("merda4 \n");
 	return 0;
 }
 
 unsigned int stuff(unsigned char *buf, unsigned int size){
 
-	unsigned int newsize = size;
 	int i;
-	for(i=0;i < size;i++){
-		if(buf[i] == FLAG || buf[i] == ESC)
-		newsize++;
-	}
-	buf = (unsigned char*) realloc(buf,newsize);
-
-	for(i=0;i < size;i++){
-		if(buf[i] == FLAG || buf[i] == ESC){
-			memmove(buf+i+1,buf+i,size-1);
-			size++;
-			buf[i] == ESC;
-			buf[i+1] == buf[i+1]^0x20;
+	for (i = 0; i < size; i++) {
+		if (buf[i] == 0x7e) { // Needs to be stuffed, it's an escape flag
+			realloc(buf, size + sizeof(unsigned char*));
+			memmove(buf + i + 1, buf + i, size- i);
+			buf[i] = 0x7d;
+			buf[i+1] = 0x5e;
 		}
-	}
+		if (buf[i] == 0x7d) { // Needs to be stuffed, it's an escape flag
+			realloc(buf, size + sizeof(unsigned char*));
+			memmove(buf + i + 1, buf + i, size- i);
+			buf[i] = 0x7d;
+			buf[i+1] = 0x5d;
+		}
 
-return newsize;
+	}
+	printf("%s\n",buf );
+
+return sizeof(buf);
 }

@@ -8,18 +8,19 @@
 #define TRUE 1
 
 
-char* buildStartPacket(char * filename,int sizeFile){
+unsigned char* buildStartPacket(char * filename,int sizeFile){
 
   unsigned char filesize[4];
 
-  filesize[3] = (sizeFile >> 24) & 0xFF;
-  filesize[2] = (sizeFile >> 16) & 0xFF;
-  filesize[1] = (sizeFile >> 8) & 0xFF;
-  filesize[0] = sizeFile & 0xFF;
+  filesize[0] = (sizeFile >> 24) & 0xFF;
+  filesize[1] = (sizeFile >> 16) & 0xFF;
+  filesize[2] = (sizeFile >> 8) & 0xFF;
+  filesize[3] = sizeFile & 0xFF;
 
+  int size = 5 + 4 + strlen(filename);
 
-  int size = 5 + strlen(filesize) + strlen(filename);
-  char * packet = (char *) malloc(size);
+  unsigned char* packet = malloc(size);
+
   unsigned int i=0,pos=3;
 
   packet[0] = 0x02;
@@ -31,10 +32,13 @@ char* buildStartPacket(char * filename,int sizeFile){
   }
 
   packet[pos++]=0x00; //filesize
-  packet[pos++]= strlen(filesize);
+  packet[pos++]= sizeof(filesize);
+  printf("filesize %d", sizeof(filesize));
+
   for(i = 0; i < 4; i++){
     packet[pos++] = filesize[i];
   }
+
   return packet;
 }
 
@@ -109,8 +113,12 @@ int main(int argc, char** argv){
         stat(argv[2], &st);
         int size = st.st_size;
 
-        char* CTRL_START = buildStartPacket(argv[2],size);
+        unsigned char* CTRL_START = buildStartPacket(argv[2],size);
 
+        int i ;
+          for(i = 0; i < 17; i++){
+            printf("packets[%d] =  %x \n",i,CTRL_START[i] );
+          }
         /*int i = 0;
         while(!feof(file)){
         	unsigned char* buf = (unsigned char*)malloc (sizeof(unsigned char)*10);
@@ -119,7 +127,7 @@ int main(int argc, char** argv){
         	free(buf);
         }*/
 
-        if(llwrite(fd,CTRL_START,sizeof(CTRL_START)) < 0)
+        if(llwrite(fd,CTRL_START,17) < 0)
           printf("ERROR in llwrite! \n");
         else{
          if(llclose(fd) < 0)
