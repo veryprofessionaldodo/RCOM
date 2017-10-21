@@ -27,7 +27,6 @@ void processframe(int fd, char* buf, int n) {
 	alarm(0);
     printf("entrou no process frame\n");
     printf(" buf[0] : %d n : %d \n",buf[2], n);
-    if (n == 5) {
         // Check if UA
         if (buf[0] == FLAG && buf[1] == 0x03 && buf[2] == UA
             && buf[3] == UA^0x03 && buf[4] == FLAG) {
@@ -39,12 +38,19 @@ void processframe(int fd, char* buf, int n) {
                  noInformationFrameWrite(fd,UA,5);
 				 			 	 STOP = TRUE;
         }
-    }
-    else {
+        else if(buf[2] == RR || buf[2] == RR^0x40){
+			STOP = TRUE;
+        }
+		else if(buf[2] == REJ || buf[2] == REJ^0x40){
 
-    }
+        }
+		else { // ERROR
+
+		}
+    
 
 }
+
 
 int frread(int fd, unsigned char * buf, int maxlen) {
     int n=0;
@@ -150,10 +156,22 @@ for(i = 0; i < size;i++){
 packet[size + 4] = BCC2;
 packet[size + 5] = FLAG;
 
-if(write(fd,packet,size+ 5 ) != size+ 5 ){
-	printf("Error sending frame\n");
-}
-	return 0;
+
+printf("yolo\n");
+
+	STOP = FALSE;
+	int c = -1;
+	char buf2[255];
+	alarm(3);
+  	while(counter < 3 && STOP == FALSE){
+		if(write(fd,packet,size+ 5 ) != size+ 5 ){
+			printf("Error sending frame\n");
+		}
+		printf("yolo1\n");
+		 c = frread(fd,buf2,5);
+	 }
+	 counter = 0;
+	 return c;
 }
 
 unsigned int stuff(unsigned char *buf, unsigned int size){

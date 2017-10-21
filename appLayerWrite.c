@@ -7,15 +7,18 @@
 #define FALSE 0
 #define TRUE 1
 
+struct linkLayer ll;
 
-unsigned char* buildStartPacket(char * filename,int sizeFile){
+
+unsigned char* buildControlPacket(char state,char * filename,int *sizeFile){
 
   unsigned char filesize[4];
+  int sizetmp = *sizeFile;
 
-  filesize[0] = (sizeFile >> 24) & 0xFF;
-  filesize[1] = (sizeFile >> 16) & 0xFF;
-  filesize[2] = (sizeFile >> 8) & 0xFF;
-  filesize[3] = sizeFile & 0xFF;
+  filesize[0] = (sizetmp >> 24) & 0xFF;
+  filesize[1] = (sizetmp >> 16) & 0xFF;
+  filesize[2] = (sizetmp >> 8) & 0xFF;
+  filesize[3] = sizetmp & 0xFF;
 
   int size = 5 + 4 + strlen(filename);
 
@@ -23,7 +26,7 @@ unsigned char* buildStartPacket(char * filename,int sizeFile){
 
   unsigned int i=0,pos=3;
 
-  packet[0] = 0x02;
+  packet[0] = state;
   packet[1] = 0x01; //filename
   packet[2] = strlen(filename);
 
@@ -33,11 +36,12 @@ unsigned char* buildStartPacket(char * filename,int sizeFile){
 
   packet[pos++]=0x00; //filesize
   packet[pos++]= sizeof(filesize);
-  printf("filesize %d", sizeof(filesize));
 
   for(i = 0; i < 4; i++){
     packet[pos++] = filesize[i];
   }
+  sizetmp = size;
+  *sizeFile = sizetmp;
 
   return packet;
 }
@@ -54,7 +58,6 @@ int main(int argc, char** argv){
     printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
     exit(1);
   }
-
 
 /*
   Open serial port device for reading and writing and not as controlling tty
@@ -97,6 +100,10 @@ int main(int argc, char** argv){
   printf("New termios structure set\n");
   FILE *file;
 
+    /*ll.port = argv[1];
+	ll.sequenceNumber = 0;
+	ll.timeout = 3;*/
+
     if(llopen(fd) < 0)
       printf("ERROR in llopen! \n");
       else{
@@ -113,12 +120,13 @@ int main(int argc, char** argv){
         stat(argv[2], &st);
         int size = st.st_size;
 
-        unsigned char* CTRL_START = buildStartPacket(argv[2],size);
+        unsigned char* CTRL_START = buildControlPacket(0x02,argv[2],&size);
 
-        int i ;
-          for(i = 0; i < 17; i++){
+        /*int i ;
+          for(i = 0; i < size; i++){
             printf("packets[%d] =  %x \n",i,CTRL_START[i] );
-          }
+          }*/
+
         /*int i = 0;
         while(!feof(file)){
         	unsigned char* buf = (unsigned char*)malloc (sizeof(unsigned char)*10);
@@ -127,8 +135,19 @@ int main(int argc, char** argv){
         	free(buf);
         }*/
 
-        if(llwrite(fd,CTRL_START,17) < 0)
-          printf("ERROR in llwrite! \n");
+        
+
+        if(llwrite(fd,CTRL_START,size) < 0)
+          printf("ERROR in llwrite start! \n");
+
+
+        //send ctrl end
+        int size_ctrl_end = st.st_size;
+        unsigned char* CTRL_END = buildControlPacket(0x03,argv[2],&size_ctrl_end);
+
+          if(llwrite(fd,CTRL_END,size_ctrl_end) < 0)
+          printf("ERROR in llwrite end! \n");
+
         else{
          if(llclose(fd) < 0)
           printf("ERROR in llclose! \n");
