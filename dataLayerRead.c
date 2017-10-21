@@ -59,7 +59,6 @@ int processframe(int fd, char* buf, int n) {
       frwrite(fd, REJ, r);
       return -1;
   }
-
 	if (n == 5) {
 		// Check if SET
 		if (buf[0] == FLAG && buf[1] == 0x03 && buf[2] == SET
@@ -83,7 +82,6 @@ int processframe(int fd, char* buf, int n) {
         return 0;
 		}
 	}
-
 	else {
 		processInformationFrame(fd, buf);
 	}
@@ -109,6 +107,8 @@ void processInformationFrame(int fd, char* buf) {
     int nameSize = buf[6];
     printf("namesize %i\n", nameSize);
     memcpy(&filename, &buf + 7*sizeof(char*), nameSize);
+
+
     printf("buf[0] = %x\n",buf[0]);
     printf("buf[1] = %x\n",buf[1]);
     printf("buf[2] = %x\n",buf[2]);
@@ -133,35 +133,37 @@ void processInformationFrame(int fd, char* buf) {
     printf("buf[21] = %x\n",buf[21]);
     printf("buf[22] = %x\n",buf[22]);
 
-
-
     int nextPos = nameSize * sizeof(char);
 		int fileInformationSize = (int)strtol(&buf[nextPos+1], NULL, 0);
   	char fileBuffer[fileInformationSize];
 
 		memcpy(fileBuffer, buf+ nextPos+2, fileInformationSize * sizeof(char));
 
-    printf("filename %s", filename);
+    printf("filesize %i", filesize);
 
     FILE *fp = fopen(&filename, "w");
     if (fp == NULL)
       printf("rica merda cvaralho\n");
     else
       fclose(fp);
+
     //printf("%d \n",sizeof(filename));
 	}
 	// Control End
 	else if (buf[4] == CONTROL_PACKET_END) {
+		printf("pressupostamente estou a ler um start\n");
 
+			STOP = TRUE;
 	}
 	  // Data Packet
   else {
     	// Write on the file data size
-    	frwrite(fd, RR, r);
+
   }
 }
 
 int frread(int fd, unsigned char * buf2, int maxlen) {
+	printf("piiças de merda\n");
 	int n=0;
 	int ch;
   char buf[255];
