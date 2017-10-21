@@ -15,10 +15,6 @@
 #define CONTROL_PACKET_START 0x02
 #define CONTROL_PACKET_END 0x03
 
-#define CONNECTING 1
-#define READING 2
-#define CLOSING 3
-#define CLOSED 4
 
 FILE * file;
 volatile int STOP=FALSE;
@@ -46,7 +42,7 @@ void frwrite(int fd, char state, char NR) {
 }
 
 
-int processframe(int fd, char* buf, int n) {
+void processframe(int fd, char* buf, int n) {
 
   char r = 0x00;
 
@@ -59,34 +55,31 @@ int processframe(int fd, char* buf, int n) {
       frwrite(fd, REJ, r);
       return -1;
   }
+
+  printf("n %i\n", n);
 	if (n == 5) {
 		// Check if SET
 		if (buf[0] == FLAG && buf[1] == 0x03 && buf[2] == SET
 			&& buf[3] == SET^0x03 && buf[4] == FLAG) {
 	        printf("recebi um set\n");
           STOP = TRUE;
-          return CONNECTING;
 		}
 		// Check if DISC
 		else if (buf[0] == FLAG && buf[1] == 0x03 && buf[2] == DISC
 			&& buf[3] == DISC^0x03 && buf[4] == FLAG) {
            printf("recebi um disc\n");
            STOP = TRUE;
-           return CLOSING;
 		}
 
 		// Check if UA
 		else if (buf[0] == FLAG && buf[1] == 0x01 && buf[2] == UA
 			&& buf[3] == DISC^0x01 && buf[4] == FLAG) {
 				STOP = TRUE;
-        return 0;
 		}
 	}
 	else {
 		processInformationFrame(fd, buf);
 	}
-
-  return -1;
 
 }
 
@@ -134,12 +127,12 @@ void processInformationFrame(int fd, char* buf) {
     printf("buf[22] = %x\n",buf[22]);
 
     int nextPos = nameSize * sizeof(char);
-		int fileInformationSize = (int)strtol(&buf[nextPos+1], NULL, 0);
+	int fileInformationSize = (int)strtol(&buf[nextPos+1], NULL, 0);
   	char fileBuffer[fileInformationSize];
 
-		memcpy(fileBuffer, buf+ nextPos+2, fileInformationSize * sizeof(char));
+	memcpy(fileBuffer, buf+ nextPos+2, fileInformationSize * sizeof(char));
 
-    printf("filesize %i", filesize);
+    printf("filesize %i\n", filesize);
 
     FILE *fp = fopen(&filename, "w");
     if (fp == NULL)
@@ -151,29 +144,29 @@ void processInformationFrame(int fd, char* buf) {
 	}
 	// Control End
 	else if (buf[4] == CONTROL_PACKET_END) {
-		printf("pressupostamente estou a ler um start\n");
-
-			STOP = TRUE;
+		printf("pressupostamente estou a ler um end\n");
+		STOP = TRUE;
 	}
 	  // Data Packet
   else {
     	// Write on the file data size
 
   }
+  
+  frwrite(fd, RR, r);
 }
 
 int frread(int fd, unsigned char * buf2, int maxlen) {
-	printf("piiças de merda\n");
+
 	int n=0;
 	int ch;
-  char buf[255];
+    char buf[255];
 	while(1) {
-
  		if((ch= read(fd, buf + n, 1)) <= 0) {
 			return ch; // ERROR
 		}
 
-		//printf("ceasdas %d\n", (int) buf[n]);
+    	printf("ceasdas %d\n", (int) buf[n]);
 
 		if(n==0 && buf[n] != FLAG)
 			continue;
@@ -197,39 +190,40 @@ int frread(int fd, unsigned char * buf2, int maxlen) {
 
 int llopen(int fd) {
   int res;
-  while (STOP==FALSE) {
-    char buf[255];   /* loop for input */
-    res = frread(fd,buf,sizeof(buf));   /* returns after 5 chars have been input */
 
-    // If received a set,
-    if (res == CONNECTING)
-      frwrite(fd, UA, 0x00);
+
+  while (STOP==FALSE) {
+    char buf[255]; 
+    res = frread(fd,buf,sizeof(buf));   
   }
+
+  frwrite(fd, UA, 0x00);
+
   STOP = FALSE;
   return 0;
 }
 
 int llread(int fd) {
   int res;
-  while (STOP==FALSE) {
-    char buf[255];   /* loop for input */
-    res = frread(fd,buf,sizeof(buf));   /* returns after 5 chars have been input */
 
-    if (res == CLOSING) {
-      frwrite(fd, DISC, 0x00);
-    }
+  while (STOP==FALSE) {
+    char buf[255];  
+    res = frread(fd,buf,sizeof(buf));  
   }
+
   STOP = FALSE;
   return 0;
 }
 
 int llclose(int fd) {
   int res;
+  printf("entrei no llclose\n");
 
   while (STOP==FALSE) {
-    char buf[255];   /* loop for input */
-    res = frread(fd,buf,sizeof(buf));   /* returns after 5 chars have been input */
+    char buf[255];  
+    res = frread(fd,buf,sizeof(buf));
   }
+  frwrite(fd, DISC, 0x00);
   return 0;
 }
 
