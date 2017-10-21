@@ -137,9 +137,9 @@ unsigned char BCC2 = 0;
 for(i = 0; i < size-1;i++){
 	BCC2 = BCC2^buf[i];
 }
-printf("yolo\n");
+
 stuff(buf,&size);
-printf("yolo1\n");
+
 unsigned char* packet = malloc(size+ 5);
 packet[0] = FLAG;
 packet[1] = 0x03;
