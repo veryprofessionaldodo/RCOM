@@ -23,7 +23,7 @@
 FILE * file;
 volatile int STOP=FALSE;
 
-char* filename;
+unsigned char* filename;
 int filesize;
 
 void frwrite(int fd, char state, char NR) {
@@ -109,14 +109,46 @@ void processInformationFrame(int fd, char* buf) {
     int nameSize = buf[6];
     printf("namesize %i\n", nameSize);
     memcpy(&filename, &buf + 7*sizeof(char*), nameSize);
+    printf("buf[0] = %x\n",buf[0]);
+    printf("buf[1] = %x\n",buf[1]);
+    printf("buf[2] = %x\n",buf[2]);
+    printf("buf[3] = %x\n",buf[3]);
+    printf("buf[4] = %x\n",buf[4]);
+    printf("buf[5] = %x\n",buf[5]);
+    printf("buf[6] = %x\n",buf[6]);
+    printf("buf[7] = %x\n",buf[7]);
+    printf("buf[8] = %x\n",buf[8]);
+    printf("buf[9] = %x\n",buf[9]);
+    printf("buf[10] = %x\n",buf[10]);
+    printf("buf[11] = %x\n",buf[11]);
+    printf("buf[12] = %x\n",buf[12]);
+    printf("buf[13] = %x\n",buf[13]);
+    printf("buf[14] = %x\n",buf[14]);
+    printf("buf[15] = %x\n",buf[15]);
+    printf("buf[16] = %x\n",buf[16]);
+    printf("buf[17] = %x\n",buf[17]);
+    printf("buf[18] = %x\n",buf[18]);
+    printf("buf[19] = %x\n",buf[19]);
+    printf("buf[20] = %x\n",buf[20]);
+    printf("buf[21] = %x\n",buf[21]);
+    printf("buf[22] = %x\n",buf[22]);
+
+
 
     int nextPos = nameSize * sizeof(char);
 		int fileInformationSize = (int)strtol(&buf[nextPos+1], NULL, 0);
   	char fileBuffer[fileInformationSize];
 
 		memcpy(fileBuffer, buf+ nextPos+2, fileInformationSize * sizeof(char));
-    printf("merda3\n");
-    printf("%d \n",sizeof(filename));
+
+    printf("filename %s", filename);
+
+    FILE *fp = fopen(&filename, "w");
+    if (fp == NULL)
+      printf("rica merda cvaralho\n");
+    else
+      fclose(fp);
+    //printf("%d \n",sizeof(filename));
 	}
 	// Control End
 	else if (buf[4] == CONTROL_PACKET_END) {
