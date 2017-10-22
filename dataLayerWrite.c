@@ -6,8 +6,7 @@ volatile int STOP=FALSE;
 int current_state, previous_state;
 int counter = 0;
 int serialPortFD;
-//struct linkLayer l*;
-int CN = 0;
+int CN = 0x00;
 
 
 void noInformationFrameWrite(int fd, char state, int n) {
@@ -42,7 +41,7 @@ void processframe(int fd, char* buf, int n) {
 			STOP = TRUE;
         }
 		else if(buf[2] == REJ || buf[2] == REJ^0x40){
-
+			STOP = FALSE;
         }
 		else { // ERROR
 
@@ -133,14 +132,14 @@ printf("Entrei no llwrite \n");
 
 // Xor BCC2, stuff, fazer trama
 unsigned int i = 0;
-unsigned char BCC2 = 0;
+unsigned char BCC2 = 0x00;
 for(i = 0; i < size-1;i++){
 	BCC2 = BCC2^buf[i];
 }
 
 stuff(buf,&size);
 
-unsigned char* packet = malloc(size+ 5);
+unsigned char* packet = malloc(size+ 6);
 packet[0] = FLAG;
 packet[1] = 0x03;
 packet[2] = CN;
@@ -152,19 +151,35 @@ for(i = 0; i < size;i++){
 packet[size + 4] = BCC2;
 packet[size + 5] = FLAG;
 
-
+/*for(i = 0; i < size+6;i++){
+	printf("packet[%d] = %x\n",i,packet[i] );
+}*/
 //waiting for response;
 	STOP = FALSE;
 	int c = -1;
 	char buf2[255];
 	alarm(3);
+
+	int x;
+	for(x = 0; x < size +6 ; x++) {
+		printf("packet[%d] = %x\n", x, packet[x]);
+	}
+
   while(counter < 3 && STOP == FALSE){
+		printf("packetsize %d size %i ", sizeof(packet), size);
 		if(write(fd,packet,size + 6 ) != size + 6 ){
 			printf("Error sending frame\n");
 		};
+		printf("yolo1\n");
 		 c = frread(fd,buf2,5);
 	 }
 	 counter = 0;
+
+	 if(CN = 0x00)
+	   CN = 0x40;
+		 else
+		 CN = 0x00;
+
 	 return c;
 }
 

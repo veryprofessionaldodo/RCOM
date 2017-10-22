@@ -7,7 +7,8 @@
 #define FALSE 0
 #define TRUE 1
 
-struct linkLayer ll;
+int nSequence = 0;
+int transmittedData = 0;
 
 
 unsigned char* buildControlPacket(char state,char * filename,int *sizeFile){
@@ -39,10 +40,38 @@ unsigned char* buildControlPacket(char state,char * filename,int *sizeFile){
 
   for(i = 0; i < 4; i++){
     packet[pos++] = filesize[i];
+
+  }
+  sizetmp = size;
+  *sizeFile = sizetmp;
+  return packet;
+}
+
+unsigned char* buildDataPacket(char * buf,int *sizeFile){
+
+  int sizetmp = *sizeFile;
+
+	int L2 = sizetmp / 256;
+	int L1 = sizetmp % 256;
+
+  int size = sizetmp + 4;
+
+  unsigned char* packet = malloc(size);
+
+  unsigned int i=0,pos=4;
+
+  packet[0] = 0x01;
+  packet[1] = nSequence%255;
+  packet[2] = (unsigned char*) L2 ;
+	packet[3] = (unsigned char*) L1 ;
+
+  for(i = 0; i < sizetmp; i++){
+    packet[pos++] = buf[i];
   }
   sizetmp = size;
   *sizeFile = sizetmp;
 
+ nSequence++;
   return packet;
 }
 
@@ -100,10 +129,6 @@ int main(int argc, char** argv){
   printf("New termios structure set\n");
   FILE *file;
 
-    /*ll.port = argv[1];
-	ll.sequenceNumber = 0;
-	ll.timeout = 3;*/
-
     if(llopen(fd) < 0)
       printf("ERROR in llopen! \n");
       else{
@@ -120,31 +145,50 @@ int main(int argc, char** argv){
         stat(argv[2], &st);
         int size = st.st_size;
 
-        unsigned char* CTRL_START = buildControlPacket(0x02,argv[2],&size);
+        unsigned char* CTRL_START = buildControlPacket(0x02,argv[2],&size); //control start packet created
 
-        /*int i ;
-          for(i = 0; i < size; i++){
-            printf("packets[%d] =  %x \n",i,CTRL_START[i] );
-          }*/
-
-        /*int i = 0;
-        while(!feof(file)){
-        	unsigned char* buf = (unsigned char*)malloc (sizeof(unsigned char)*10);
-        	fread(buf,sizeof(unsigned char*),sizeof(unsigned char*)*10,file);
-        	free(buf);
-        }*/
-
-
-
-        if(llwrite(fd,CTRL_START,size) < 0)
+				if(llwrite(fd,CTRL_START,size) < 0)   //send control start packet
           printf("ERROR in llwrite start! \n");
+
+        int i = 0;
+				int sizepacket;
+				if(st.st_size > 255){
+					sizepacket = st.st_size / 255;
+				}
+
+				unsigned char* buf = (unsigned char*)malloc (sizeof(unsigned char*)*st.st_size);
+				fread(buf,sizeof(unsigned char*),sizeof(unsigned char*)*st.st_size,file);    //read form file
+
+        while(transmittedData < st.st_size){
+					int sizebuf;
+
+					if (st.st_size - transmittedData > 255)
+						sizebuf = 255;
+					else
+						sizebuf = st.st_size - transmittedData;
+
+					unsigned char* buftmp[sizebuf];
+
+					for(i=0; i < sizebuf;i++){
+						buftmp[i] = buf[sizebuf*i];
+					}
+
+					unsigned char * CTRL_DATA =buildDataPacket(buftmp,&sizebuf);      //create data packet
+
+					printf("sending part of file\n" );
+					if(llwrite(fd,CTRL_DATA,sizebuf) < 0)  //send control data packet
+          printf("ERROR in llwrite data! \n");
+
+        	free(buf);
+					transmittedData += sizebuf;
+        }
 
          printf("read start : pass to end\n");
         //send ctrl end
         int size_ctrl_end = st.st_size;
-        unsigned char* CTRL_END = buildControlPacket(0x03,argv[2],&size_ctrl_end);
+        unsigned char* CTRL_END = buildControlPacket(0x03,argv[2],&size_ctrl_end); //control end packet created
 
-          if(llwrite(fd,CTRL_END,size_ctrl_end) < 0)
+          if(llwrite(fd,CTRL_END,size_ctrl_end) < 0)  //send control end packet
           printf("ERROR in llwrite end! \n");
 
         else{
