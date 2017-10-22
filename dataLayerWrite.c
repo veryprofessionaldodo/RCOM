@@ -149,7 +149,7 @@ for(i = 0; i < size;i++){
 packet[size + 4] = BCC2;
 packet[size + 5] = FLAG;
 
-//waiting for response;
+  //waiting for response;
 	STOP = FALSE;
 	int c = -1;
 	char buf2[255];
@@ -158,6 +158,7 @@ packet[size + 5] = FLAG;
 	int x;
 
   /*for(x = 0; x < size + 6 ; x++) {
+    sleep(1);
 		printf("packet[%d] = %x\n", x, packet[x]);
 	}*/
 

@@ -11,10 +11,9 @@ int nSequence = 0;
 int transmittedData = 0;
 
 
-unsigned char* buildControlPacket(char state,char * filename,int *sizeFile){
-
+unsigned char* buildControlPacket(char state,char * filename,int sizeFile){
   unsigned char filesize[4];
-  int sizetmp = *sizeFile;
+  int sizetmp = sizeFile;
 
   filesize[0] = (sizetmp >> 24) & 0xFF;
   filesize[1] = (sizetmp >> 16) & 0xFF;
@@ -25,37 +24,34 @@ unsigned char* buildControlPacket(char state,char * filename,int *sizeFile){
 
   unsigned char* packet = malloc(size);
 
-  unsigned int i=0,pos=3;
+  unsigned int i=0;
 
   packet[0] = state;
   packet[1] = 0x01; //filename
   packet[2] = strlen(filename);
 
   for(i = 0; i < strlen(filename);i++){
-    packet[pos++] = filename[i];
+    packet[3+i] = filename[i];
   }
 
-  packet[pos++]=0x00; //filesize
-  packet[pos++]= sizeof(filesize);
+  int nextPos = 3 + strlen(filename);
+
+  packet[nextPos]=0x00; //filesize
+  packet[nextPos+1]= sizeof(filesize);
 
   for(i = 0; i < 4; i++){
-    packet[pos++] = filesize[i];
-
+    packet[nextPos +2 +i] = filesize[i];
   }
-  sizetmp = size;
-  *sizeFile = sizetmp;
+
   return packet;
 }
 
-unsigned char* buildDataPacket(char * buf,int *sizeFile){
+unsigned char* buildDataPacket(char * buf,int sizeFile){
  unsigned char filesize[4];
-
-  int sizetmp = *sizeFile;
+  int sizetmp = sizeFile;
 
   int L2 = sizetmp / 256;
 	int L1 = sizetmp % 256;
-
-  printf("L2 %d L1 %d sizetmp %d \n", L2, L1, sizetmp);
 
   int size = sizetmp + 4;
 
@@ -73,31 +69,7 @@ unsigned char* buildDataPacket(char * buf,int *sizeFile){
   }
 
   return packet;
-  /*
-  printf("sizefile do builddatapacket %d\n", *sizeFile);
-  int sizetmp = *sizeFile;
 
-	int L2 = sizetmp / 256;
-	int L1 = sizetmp % 256;
-
-  int size = sizetmp + 4;
-
-  unsigned char* packet = malloc(size*9);
-  unsigned int i=0,pos=4;
-
-  packet[0] = 0x01;
-  packet[1] = nSequence%255;
-  packet[2] = L2;
-	packet[3] = L1;
-
-  for(i = 0; i < sizetmp; i++){
-    packet[pos++] = buf[i];
-  }
-  sizetmp = size;
-  *sizeFile = sizetmp;
-
-  nSequence++;
-  return packet; */
 }
 
 int main(int argc, char** argv){
@@ -170,7 +142,7 @@ int main(int argc, char** argv){
         stat(argv[2], &st);
         int size = st.st_size;
 
-        unsigned char* CTRL_START = buildControlPacket(0x02,argv[2],&size); //control start packet created
+        unsigned char* CTRL_START = buildControlPacket(0x02,argv[2],size); //control start packet created
 
 				if(llwrite(fd,CTRL_START,size) < 0)   //send control start packet
           printf("ERROR in llwrite start! \n");
@@ -180,10 +152,12 @@ int main(int argc, char** argv){
 				unsigned char* buf = (unsigned char*)malloc (sizeof(unsigned char*)*st.st_size);
 				fread(buf,sizeof(unsigned char*),sizeof(unsigned char*)*st.st_size,file);    //read form file
 
+
+
+
+
 	      int sizebuf = MAX_SIZE;
         while(transmittedData < st.st_size){
-
-
           //printf("buf = %s\n",buf );
 					if ((st.st_size - transmittedData) > MAX_SIZE)
             sizebuf = MAX_SIZE;
@@ -204,21 +178,18 @@ int main(int argc, char** argv){
 
           printf("transmitted data %d st.st_size %d sizebuf %d\n", transmittedData, st.st_size, sizebuf);
 
-					unsigned char * CTRL_DATA =buildDataPacket(buftmp,&sizebuf);      //create data packet
+					unsigned char * CTRL_DATA =buildDataPacket(buftmp,sizebuf);      //create data packet
+
           if(llwrite(fd,CTRL_DATA,sizebuf) < 0)  //send control data packet
             printf("ERROR in llwrite data! \n");
-
-
-
-
         }
 
-         printf("read start : pass to end\n");
+        printf("finished writing!!!!\n");
         //send ctrl end
         int size_ctrl_end = st.st_size;
-        unsigned char* CTRL_END = buildControlPacket(0x03,argv[2],&size_ctrl_end); //control end packet created
+        unsigned char* CTRL_END = buildControlPacket(0x03,argv[2],size_ctrl_end); //control end packet created
 
-          if(llwrite(fd,CTRL_END,size_ctrl_end) < 0)  //send control end packet
+        if(llwrite(fd,CTRL_END,size_ctrl_end) < 0)  //send control end packet
           printf("ERROR in llwrite end! \n");
 
         else{
