@@ -30,7 +30,7 @@ int frread(int fd, unsigned char * buf, int maxlen) {
 			return ch; // ERROR
 		}
 
-    //printf("Ler %x  n%d\n", buf[n], n);
+    printf("Ler %x  n%d\n", buf[n], n);
 
 		if(n==0 && buf[n] != FLAG)
 			continue;

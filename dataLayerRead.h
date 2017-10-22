@@ -14,6 +14,8 @@
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
 #define TRUE 1
+#define MAX_SIZE 1024
+
 
 void frwrite(int fd, char state, char NR);
 
