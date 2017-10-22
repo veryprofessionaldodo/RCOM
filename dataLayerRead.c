@@ -15,24 +15,22 @@
 #define CONTROL_PACKET_START 0x02
 #define CONTROL_PACKET_END 0x03
 
-
 volatile int STOP=FALSE;
 
 FILE * file;
-
+unsigned int filesize;
+unsigned int receivedData;
 
 int frread(int fd, unsigned char * buf, int maxlen) {
 	int n=0;
 	int ch;
-
-
 
 	while(1) {
  		if((ch= read(fd, buf + n, 1)) <= 0) {
 			return ch; // ERROR
 		}
 
-    printf("%x  \n", buf[n]);
+    printf("Ler %x  \n", buf[n]);
 
 		if(n==0 && buf[n] != FLAG)
 			continue;
@@ -43,6 +41,7 @@ int frread(int fd, unsigned char * buf, int maxlen) {
 		n++;
 
 		if(buf[n-1] != FLAG && n == maxlen) {
+			printf("piças\n");
 			n=0;
 			continue;
 		}
@@ -111,16 +110,17 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
   else
     r = NR0;
 
-		for (int i = 0 ; i < n; i++) {
+		int i;
+
+		/*for (i = 0 ; i < n; i++) {
 			printf("buf %d %x\n",i, buf[i]);
-		}
+		}*/
 
 	// Control Start
 	if (buf[4] == CONTROL_PACKET_START) { // We chose the first T to be filename, and the second to be size
     printf("pressupostamente estou a ler um start\n");
     // Filename
 		unsigned char* filename;
-		int filesize;
 
     int nameSize = buf[6];
 
@@ -131,10 +131,28 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 			filename[x] = buf[x+7];
 		}
 
-	  int nextPos = nameSize * sizeof(char);
-		int fileInformationSize = (int)strtol(&buf[nextPos+1], NULL, 0);
 
-		printf("filename %s\n", filename);
+	  int nextPos = nameSize * sizeof(char);
+		unsigned int fileInformationSize = (unsigned int) buf[nextPos+1];
+
+
+		// printf("fileinformationsize %x\n", fileInformationSize);
+
+		unsigned char *filesizeChar = (unsigned char *) malloc(fileInformationSize * sizeof(unsigned char*));
+
+		for (x = 0; x < 4; x++) {
+			filesizeChar[x] = buf[x+nextPos+9];
+			printf("buf merda %x\n", buf[x+nextPos+9]);
+		}
+
+		/*filesizeChar[0] = (filesize>>24) & 0xFF;
+		filesizeChar[1] = (filesize>>16) & 0xFF;
+		filesizeChar[2] = (filesize>>8) & 0xFF;
+		filesizeChar[3] = filesize & 0xFF;*/
+
+		filesize = *(int *)filesizeChar;
+
+		printf("filesize %d\n", filesize);
 
 	  file = fopen(filename, "w");
 		if (file == NULL)
@@ -157,16 +175,12 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 		int numPackets = buf[6]*256 + buf[7];
 
 		int i;
-		printf("%i\n", numPackets);
 
 		for (i = 0 ; i < numPackets; i++ ) {
 			fwrite(&buf[8+i], 1, sizeof(buf[8+i]), file);
 		}
 
-
-
 		frwrite(fd, RR, r);
-
   }
 
 	else { // Not a valid packet
@@ -197,8 +211,9 @@ int llopen(int fd) {
   int res;
 
   while (STOP==FALSE) {
-    char buf[255];
-		frread(fd,buf,sizeof(buf));
+		unsigned char* buf = (unsigned char*) malloc(sizeof(unsigned char*)*1000);
+    frread(fd,buf,10000);
+		free(buf);
   }
 
   frwrite(fd, UA, 0x00);
@@ -211,8 +226,9 @@ int llread(int fd) {
   int res;
 
   while (STOP==FALSE) {
-    char buf[255];
-    frread(fd,buf,sizeof(buf));
+    unsigned char* buf = (unsigned char*) malloc(sizeof(unsigned char*)*1200);
+    frread(fd,buf,10000);
+		free(buf);
   }
 
   STOP = FALSE;
@@ -225,14 +241,12 @@ int llclose(int fd) {
 	frwrite(fd, DISC, 0x00);
 
   while (STOP==FALSE) {
-    char buf[255];
-    frread(fd,buf,sizeof(buf));
+		unsigned char* buf = (unsigned char*) malloc(sizeof(unsigned char*)*255);
+    frread(fd,buf,10000);
+		free(buf);
   }
   return 0;
 }
-
-
-
 
 unsigned char* destuff(unsigned char * buf) {
   int i;
