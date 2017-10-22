@@ -22,25 +22,27 @@ void noInformationFrameWrite(int fd, char state, int n) {
 
 }
 
-void processframe(int fd, char* buf, int n) {
+void processframe(int fd, char* buf, unsigned int n) {
 	alarm(0);
     printf("entrou no process frame\n");
-    printf(" buf[0] : %d n : %d \n",buf[2], n);
-        // Check if UA
+    // Check if UA
         if (buf[0] == FLAG && buf[1] == 0x03 && buf[2] == UA
             && buf[3] == UA^0x03 && buf[4] == FLAG) {
+              printf("recebi um ua\n");
 	 	 			STOP = TRUE;
         }
         else if (buf[0] == FLAG && buf[1] == 0x01 && buf[2] == DISC
             && buf[3] == DISC^0x01 && buf[4] == FLAG) {
-
-                 noInformationFrameWrite(fd,UA,5);
-				 			 	 STOP = TRUE;
+              printf("recebi um disc\n");
+              noInformationFrameWrite(fd,UA,5);
+				 			STOP = TRUE;
         }
         else if(buf[2] == RR || buf[2] == RR^0x40){
+          printf("recebi um rr\n");
 			STOP = TRUE;
         }
 		else if(buf[2] == REJ || buf[2] == REJ^0x40){
+      printf("recebi um rej\n");
 			STOP = FALSE;
         }
 		else { // ERROR
@@ -61,7 +63,7 @@ int frread(int fd, unsigned char * buf, int maxlen) {
 					//printf(" ch %d\n", ch);
             return -1; // ERROR
            }
-        printf("ceasdas %d\n", (int) buf[n]);
+        //printf("ceasdas %d\n", (int) buf[n]);
         if(n==0 && buf[n] != FLAG)
             continue;
 
@@ -128,49 +130,48 @@ int llclose(int fd){
 }
 
 int llwrite(int fd, unsigned char* buf, int size){
-printf("Entrei no llwrite com size %d\n", size);
+  printf("Entrei no llwrite com size %d\n", size);
 
-// Xor BCC2, stuff, fazer trama
-unsigned int i = 0;
-unsigned char BCC2 = 0x00;
-for(i = 0; i < size;i++){
-	BCC2 = BCC2^buf[i];
-}
-stuff(buf,&size);
-unsigned char* packet = malloc(size+ 6);
-packet[0] = FLAG;
-packet[1] = 0x03;
-packet[2] = CN;
-packet[3] = packet[1]^packet[2];
+  // Xor BCC2, stuff, fazer trama
+  unsigned int i = 0;
+  unsigned char BCC2 = 0x00;
+  for(i = 0; i < size;i++){
+	   BCC2 = BCC2^buf[i];
+   }
 
-for(i = 0; i < size;i++){
-	packet[i+4] = buf[i];
-}
-packet[size + 4] = BCC2;
-packet[size + 5] = FLAG;
+   stuff(buf,&size);
+   unsigned char packet[size + 6];
+   packet[0] = FLAG;
+   packet[1] = 0x03;
+   packet[2] = CN;
+   packet[3] = packet[1]^packet[2];
 
-  //waiting for response;
-	STOP = FALSE;
-	int c = -1;
-	char buf2[255];
-	alarm(3);
+   for(i = 0; i < size;i++){
+	    packet[i+4] = buf[i];
+    }
+    packet[size + 4] = BCC2;
+    packet[size + 5] = FLAG;
 
-	int x;
+    //waiting for response;
+	  STOP = FALSE;
+	  int c = -1; 
+	  char buf2[255];
+	  alarm(3);
 
-  /*for(x = 0; x < size + 6 ; x++) {
-    sleep(1);
-		printf("packet[%d] = %x\n", x, packet[x]);
-	}*/
+    int x;
 
-  while(counter < 3 && STOP == FALSE){
-		if(write(fd,packet,size + 6 ) != size + 6 ){
-			printf("Error sending frame\n");
-		};
-    free(packet);
-    printf("acabei?\n");
-  //  sleep(1);
-		 c = frread(fd,buf2,5);
-	 }
+    for(x = 0; x < size + 6 ; x++) {
+		   printf(" [%d] = %x ", x, packet[x]);
+	  }
+    printf("\n");
+
+    while(counter < 3 && STOP == FALSE){
+		  if(write(fd,packet,size + 10 ) != size + 6 ){
+		     printf("Error sending frame\n");
+		  };
+         //  sleep(1);
+		  c = frread(fd,buf2,5);
+	  }
 	 counter = 0;
 
 	 if(CN = 0x00)

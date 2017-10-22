@@ -22,7 +22,7 @@
 #define UA 0x07
 #define DISC 0x0B
 #define ESC 0x5e
-#define MAX_SIZE 1024
+#define MAX_SIZE 512
 #define RR 0x05
 #define REJ 0x01
 
@@ -42,7 +42,7 @@ unsigned int numTransmissions; /*Número de tentativas em caso de falha*/
 char frame[MAX_SIZE];/*Trama*/
 };
 
-void processframe(int fd, char* buf, int n);
+void processframe(int fd, char* buf, unsigned int n);
 
 int frread(int fd, unsigned char * buf, int maxlen);
 

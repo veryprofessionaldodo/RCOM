@@ -106,10 +106,8 @@ int main(int argc, char** argv){
   /* set input mode (non-canonical, no echo,...) */
   newtio.c_lflag = 0;
 
-  newtio.c_cc[VTIME]    = 0;   /* inter-character timer unused */
-  newtio.c_cc[VMIN]     = 5;   /* blocking read until 5 chars received */
-
-
+  newtio.c_cc[VTIME] = 0;   /* inter-character timer unused */
+  newtio.c_cc[VMIN]  = 5;   /* blocking read until 5 chars received */
 
 /*
   VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
@@ -140,9 +138,10 @@ int main(int argc, char** argv){
         //size of file
         struct stat st;
         stat(argv[2], &st);
-        int size = st.st_size;
+        int size = 5+ 4+ strlen(argv[2]);
+        printf("size %d\n", size);
 
-        unsigned char* CTRL_START = buildControlPacket(0x02,argv[2],size); //control start packet created
+        unsigned char* CTRL_START = buildControlPacket(0x02,argv[2],st.st_size); //control start packet created
 
 				if(llwrite(fd,CTRL_START,size) < 0)   //send control start packet
           printf("ERROR in llwrite start! \n");
@@ -150,11 +149,7 @@ int main(int argc, char** argv){
         int i = 0;
 
 				unsigned char* buf = (unsigned char*)malloc (sizeof(unsigned char*)*st.st_size);
-				fread(buf,sizeof(unsigned char*),sizeof(unsigned char*)*st.st_size,file);    //read form file
-
-
-
-
+				fread(buf,sizeof(unsigned char*),sizeof(unsigned char*)*st.st_size,file);    //read from file
 
 	      int sizebuf = MAX_SIZE;
         while(transmittedData < st.st_size){
@@ -180,19 +175,23 @@ int main(int argc, char** argv){
 
 					unsigned char * CTRL_DATA =buildDataPacket(buftmp,sizebuf);      //create data packet
 
+          free(buftmp);
+
           if(llwrite(fd,CTRL_DATA,sizebuf) < 0)  //send control data packet
             printf("ERROR in llwrite data! \n");
         }
 
+        free(buf);
+
         printf("finished writing!!!!\n");
         //send ctrl end
-        int size_ctrl_end = st.st_size;
-        unsigned char* CTRL_END = buildControlPacket(0x03,argv[2],size_ctrl_end); //control end packet created
+        unsigned char* CTRL_END = buildControlPacket(0x03,argv[2],st.st_size); //control end packet created
+        printf("olha e piças para ti caralho\n");
 
-        if(llwrite(fd,CTRL_END,size_ctrl_end) < 0)  //send control end packet
+        if(llwrite(fd,CTRL_END,size) < 0)  //send control end packet
           printf("ERROR in llwrite end! \n");
-
         else{
+          printf("pqp esta merda\n");
          if(llclose(fd) < 0)
           printf("ERROR in llclose! \n");
          else
