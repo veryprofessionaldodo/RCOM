@@ -48,11 +48,14 @@ unsigned char* buildControlPacket(char state,char * filename,int *sizeFile){
 }
 
 unsigned char* buildDataPacket(char * buf,int *sizeFile){
+ unsigned char filesize[4];
 
   int sizetmp = *sizeFile;
 
-	int L2 = sizetmp / 256;
+  int L2 = sizetmp / 256;
 	int L1 = sizetmp % 256;
+
+  printf("L2 %d L1 %d sizetmp %d \n", L2, L1, sizetmp);
 
   int size = sizetmp + 4;
 
@@ -62,8 +65,30 @@ unsigned char* buildDataPacket(char * buf,int *sizeFile){
 
   packet[0] = 0x01;
   packet[1] = nSequence%255;
-  packet[2] = (unsigned char*) L2 ;
-	packet[3] = (unsigned char*) L1 ;
+  packet[2] = L2;
+	packet[3] = L1;
+
+  for(i = 4; i < size-1; i++){
+    packet[i] = buf[i-4];
+  }
+
+  return packet;
+  /*
+  printf("sizefile do builddatapacket %d\n", *sizeFile);
+  int sizetmp = *sizeFile;
+
+	int L2 = sizetmp / 256;
+	int L1 = sizetmp % 256;
+
+  int size = sizetmp + 4;
+
+  unsigned char* packet = malloc(size*9);
+  unsigned int i=0,pos=4;
+
+  packet[0] = 0x01;
+  packet[1] = nSequence%255;
+  packet[2] = L2;
+	packet[3] = L1;
 
   for(i = 0; i < sizetmp; i++){
     packet[pos++] = buf[i];
@@ -71,8 +96,8 @@ unsigned char* buildDataPacket(char * buf,int *sizeFile){
   sizetmp = size;
   *sizeFile = sizetmp;
 
- nSequence++;
-  return packet;
+  nSequence++;
+  return packet; */
 }
 
 int main(int argc, char** argv){
@@ -151,36 +176,41 @@ int main(int argc, char** argv){
           printf("ERROR in llwrite start! \n");
 
         int i = 0;
-				int sizepacket;
-				if(st.st_size > 255){
-					sizepacket = st.st_size / 255;
-				}
 
 				unsigned char* buf = (unsigned char*)malloc (sizeof(unsigned char*)*st.st_size);
 				fread(buf,sizeof(unsigned char*),sizeof(unsigned char*)*st.st_size,file);    //read form file
 
+	      int sizebuf = MAX_SIZE;
         while(transmittedData < st.st_size){
-					int sizebuf;
 
-					if (st.st_size - transmittedData > 255)
-						sizebuf = 255;
+
+          //printf("buf = %s\n",buf );
+					if ((st.st_size - transmittedData) > MAX_SIZE)
+            sizebuf = MAX_SIZE;
 					else
 						sizebuf = st.st_size - transmittedData;
 
-					unsigned char* buftmp[sizebuf];
+          unsigned char* buftmp = (unsigned char*)malloc (sizeof(unsigned char*)*sizebuf);
 
-					for(i=0; i < sizebuf;i++){
-						buftmp[i] = buf[sizebuf*i];
-					}
+          for(i=0; i < sizebuf;i++){
+          			buftmp[i] = buf[i + transmittedData];
+          }
+
+          if (transmittedData + sizebuf > st.st_size)  {
+            transmittedData += st.st_size;
+          }
+          else
+        	 transmittedData += sizebuf;
+
+          printf("transmitted data %d st.st_size %d sizebuf %d\n", transmittedData, st.st_size, sizebuf);
 
 					unsigned char * CTRL_DATA =buildDataPacket(buftmp,&sizebuf);      //create data packet
+          if(llwrite(fd,CTRL_DATA,sizebuf) < 0)  //send control data packet
+            printf("ERROR in llwrite data! \n");
 
-					printf("sending part of file\n" );
-					if(llwrite(fd,CTRL_DATA,sizebuf) < 0)  //send control data packet
-          printf("ERROR in llwrite data! \n");
 
-        	free(buf);
-					transmittedData += sizebuf;
+
+
         }
 
          printf("read start : pass to end\n");

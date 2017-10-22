@@ -128,17 +128,15 @@ int llclose(int fd){
 }
 
 int llwrite(int fd, unsigned char* buf, int size){
-printf("Entrei no llwrite \n");
+printf("Entrei no llwrite com size %d\n", size);
 
 // Xor BCC2, stuff, fazer trama
 unsigned int i = 0;
 unsigned char BCC2 = 0x00;
-for(i = 0; i < size-1;i++){
+for(i = 0; i < size;i++){
 	BCC2 = BCC2^buf[i];
 }
-
 stuff(buf,&size);
-
 unsigned char* packet = malloc(size+ 6);
 packet[0] = FLAG;
 packet[1] = 0x03;
@@ -151,9 +149,6 @@ for(i = 0; i < size;i++){
 packet[size + 4] = BCC2;
 packet[size + 5] = FLAG;
 
-/*for(i = 0; i < size+6;i++){
-	printf("packet[%d] = %x\n",i,packet[i] );
-}*/
 //waiting for response;
 	STOP = FALSE;
 	int c = -1;
@@ -161,16 +156,18 @@ packet[size + 5] = FLAG;
 	alarm(3);
 
 	int x;
-	for(x = 0; x < size +6 ; x++) {
+
+  /*for(x = 0; x < size + 6 ; x++) {
 		printf("packet[%d] = %x\n", x, packet[x]);
-	}
+	}*/
 
   while(counter < 3 && STOP == FALSE){
-		printf("packetsize %d size %i ", sizeof(packet), size);
 		if(write(fd,packet,size + 6 ) != size + 6 ){
 			printf("Error sending frame\n");
 		};
-		printf("yolo1\n");
+    free(packet);
+    printf("acabei?\n");
+  //  sleep(1);
 		 c = frread(fd,buf2,5);
 	 }
 	 counter = 0;
@@ -189,14 +186,14 @@ void stuff(unsigned char *buf, unsigned int* size){
 	int i;
 	for (i = 0; i < sizetmp; i++) {
 		if (buf[i] == 0x7e) { // Needs to be stuffed, it's an escape flag
-			realloc(buf, sizetmp + sizeof(unsigned char*));
+			buf = realloc(buf, sizetmp + sizeof(unsigned char*));
 			memmove(buf + i + 1, buf + i, sizetmp- i);
 			buf[i] = 0x7d;
 			buf[i+1] = 0x5e;
       sizetmp++;
 		}
 		if (buf[i] == 0x7d) { // Needs to be stuffed, it's an escape flag
-			realloc(buf, sizetmp + sizeof(unsigned char*));
+			buf = realloc(buf, sizetmp + sizeof(unsigned char*));
 			memmove(buf + i + 1, buf + i, sizetmp- i);
 			buf[i] = 0x7d;
 			buf[i+1] = 0x5d;
