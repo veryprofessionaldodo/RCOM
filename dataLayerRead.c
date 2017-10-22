@@ -30,7 +30,7 @@ int frread(int fd, unsigned char * buf, int maxlen) {
 			return ch; // ERROR
 		}
 
-    printf("Ler %x  \n", buf[n]);
+    printf("Ler %x  n%d\n", buf[n], n);
 
 		if(n==0 && buf[n] != FLAG)
 			continue;
@@ -61,7 +61,7 @@ int hasErrors(char * buf) {
 
 int processframe(int fd, char* buf, int n) {
   char r = 0x00;
-
+	
   if (buf[2] == NS0)
     r = NR1;
   else
@@ -104,6 +104,7 @@ int processframe(int fd, char* buf, int n) {
 }
 
 void processInformationFrame(int fd, unsigned char* buf, int n) {
+	printf("lendo informacao\n");
 	char r;
   if (buf[2] == NS0)
     r = NR1;
