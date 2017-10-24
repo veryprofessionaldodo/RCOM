@@ -3,7 +3,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <termios.h>
-#include <stdio.h>
+#include <stdio.h> 
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>

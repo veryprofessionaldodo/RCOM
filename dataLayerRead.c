@@ -38,7 +38,7 @@ int frread(int fd, unsigned char * buf, int maxlen) {
 
 		n++;
 
-		printf("ler %x n %d\n", buf[n-1], n);
+		//printf("ler %x n %d\n", buf[n-1], n);
 
 		if(buf[n-1] != FLAG && n == maxlen) {
 			printf("piças\n");
@@ -179,10 +179,18 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 
 		int i;
 
+		printf("tamanho %d\n", numPackets);
+		unsigned char * buftmp = (unsigned char*)malloc(numPackets);
+
+		memcpy(buftmp, buf + 8, numPackets);
+
+		destuff(buftmp);
+
 		fseek(file, receivedData, SEEK_SET);
-		for (i = 0 ; i < numPackets; i++ ) {
-			fwrite(&buf[8+i], 1, sizeof(buf[8+i]), file);
-		}
+
+		//printf("buftmp %s", buftmp);
+
+		fwrite(buftmp, sizeof(unsigned char*), numPackets, file);
 
 		receivedData += numPackets;
 
