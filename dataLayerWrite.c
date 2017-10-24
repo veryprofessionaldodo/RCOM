@@ -140,7 +140,7 @@ int llwrite(int fd, unsigned char* buf, int size){
    }
 
    stuff(buf,&size);
-   unsigned char packet[size + 6];
+   unsigned char * packet = (unsigned char *) malloc(size+6);
    packet[0] = FLAG;
    packet[1] = 0x03;
    packet[2] = CN;
@@ -154,7 +154,7 @@ int llwrite(int fd, unsigned char* buf, int size){
 
     //waiting for response;
 	  STOP = FALSE;
-	  int c = -1; 
+	  int c = -1;
 	  char buf2[255];
 	  alarm(3);
 
@@ -178,6 +178,8 @@ int llwrite(int fd, unsigned char* buf, int size){
 	   CN = 0x40;
 		 else
 		 CN = 0x00;
+
+     free(packet);
 
 	 return c;
 }

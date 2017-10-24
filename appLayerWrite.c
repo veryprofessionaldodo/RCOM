@@ -148,22 +148,37 @@ int main(int argc, char** argv){
 
         int i = 0;
 
-				unsigned char* buf = (unsigned char*)malloc (sizeof(unsigned char*)*st.st_size);
-				fread(buf,sizeof(unsigned char*),sizeof(unsigned char*)*st.st_size,file);    //read from file
+				unsigned char* buf = (unsigned char*) malloc (st.st_size);
+
+				fread(buf,sizeof(unsigned char*),st.st_size,file);    //read from file
+
+        FILE* file2;
+        file2 = fopen("yolo2.gif", "w");
+          if (file2 == NULL) {
+          perror ("Error opening file");
+        printf("ERROR in llwrite! \n");
+        }
+
+
 
 	      int sizebuf = MAX_SIZE;
         while(transmittedData < st.st_size){
           //printf("buf = %s\n",buf );
-					if ((st.st_size - transmittedData) > MAX_SIZE)
-            sizebuf = MAX_SIZE;
-					else
-						sizebuf = st.st_size - transmittedData;
+					     if ((st.st_size - transmittedData) > MAX_SIZE)
+                  sizebuf = MAX_SIZE;
+					      else
+						      sizebuf = st.st_size - transmittedData;
 
-          unsigned char* buftmp = (unsigned char*)malloc (sizeof(unsigned char*)*sizebuf);
-
-          for(i=0; i < sizebuf;i++){
+          /*for(i=0; i < sizebuf;i++){
           			buftmp[i] = buf[i + transmittedData];
-          }
+                fwrite(buftmp,sizeof(unsigned char*),1,file2);
+          }*/
+          unsigned char* buftmp = (unsigned char*)malloc (sizebuf);
+
+          memcpy(buftmp,buf + transmittedData, sizebuf);
+
+          fseek(file2,transmittedData,SEEK_SET);
+          fwrite(buftmp, sizeof(unsigned char *), sizebuf, file2);
 
           if (transmittedData + sizebuf > st.st_size)  {
             transmittedData += st.st_size;
@@ -180,7 +195,7 @@ int main(int argc, char** argv){
           if(llwrite(fd,CTRL_DATA,sizebuf) < 0)  //send control data packet
             printf("ERROR in llwrite data! \n");
         }
-
+        fclose (file2);
         free(buf);
 
         printf("finished writing!!!!\n");
