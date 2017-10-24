@@ -19,7 +19,7 @@
 
 void frwrite(int fd, char state, char NR);
 
-int processframe(int fd, char* buf, int n);
+int processframe(int fd, unsigned char* buf, int n);
 
 void processInformationFrame(int fd, unsigned char* buf, int n);
 
@@ -31,6 +31,6 @@ int llread(int fd);
 
 int llclose(int fd);
 
-int hasErrors(char * buf);
+int hasErrors(unsigned char * buf);
 
 unsigned char* destuff(unsigned char * buf);

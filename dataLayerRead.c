@@ -19,7 +19,7 @@ volatile int STOP=FALSE;
 
 FILE * file;
 unsigned int filesize;
-unsigned int receivedData;
+unsigned int receivedData = 0;
 
 int frread(int fd, unsigned char * buf, int maxlen) {
 	int n=0;
@@ -30,8 +30,6 @@ int frread(int fd, unsigned char * buf, int maxlen) {
 			return ch; // ERROR
 		}
 
-    printf("Ler %x  n%d\n", buf[n], n);
-
 		if(n==0 && buf[n] != FLAG)
 			continue;
 
@@ -40,6 +38,8 @@ int frread(int fd, unsigned char * buf, int maxlen) {
 
 		n++;
 
+		printf("ler %x n %d\n", buf[n-1], n);
+
 		if(buf[n-1] != FLAG && n == maxlen) {
 			printf("piças\n");
 			n=0;
@@ -47,19 +47,21 @@ int frread(int fd, unsigned char * buf, int maxlen) {
 		}
 
 		if(buf[n-1] == FLAG && n > 4) {
+
  			processframe(fd, buf, n);
 			return 0;
 		}
 	}
+	printf("\n");
 	return 0;
 }
 
-int hasErrors(char * buf) {
+int hasErrors(unsigned char * buf) {
   // See if frame has any errors
   return FALSE;
 }
 
-int processframe(int fd, char* buf, int n) {
+int processframe(int fd, unsigned char* buf, int n) {
   char r = 0x00;
 
   if (buf[2] == NS0)
@@ -105,6 +107,8 @@ int processframe(int fd, char* buf, int n) {
 
 void processInformationFrame(int fd, unsigned char* buf, int n) {
 	printf("lendo informacao\n");
+	//printf("buf merda %x e final %x\n", buf[0], buf[n-1]);
+
 	char r;
   if (buf[2] == NS0)
     r = NR1;
@@ -142,7 +146,6 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 
 		for (x = 0; x < 4; x++) {
 			filesizeChar[x] = buf[x+nextPos+9];
-			printf("buf merda %x\n", buf[x+nextPos+9]);
 		}
 
 		/*filesizeChar[0] = (filesize>>24) & 0xFF;
@@ -176,9 +179,12 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 
 		int i;
 
+		fseek(file, receivedData, SEEK_SET);
 		for (i = 0 ; i < numPackets; i++ ) {
 			fwrite(&buf[8+i], 1, sizeof(buf[8+i]), file);
 		}
+
+		receivedData += numPackets;
 
 		frwrite(fd, RR, r);
   }
@@ -211,9 +217,9 @@ int llopen(int fd) {
   int res;
 
   while (STOP==FALSE) {
-		unsigned char* buf = (unsigned char*) malloc(sizeof(unsigned char*)*1000);
+	unsigned char* buf = (unsigned char*) malloc(MAX_SIZE);
     frread(fd,buf,10000);
-		free(buf);
+	free(buf);
   }
 
   frwrite(fd, UA, 0x00);
@@ -226,9 +232,9 @@ int llread(int fd) {
   int res;
 
   while (STOP==FALSE) {
-    unsigned char* buf = (unsigned char*) malloc(sizeof(unsigned char*)*1200);
+    unsigned char* buf = (unsigned char*) malloc(MAX_SIZE);
     frread(fd,buf,10000);
-		free(buf);
+	free(buf);
   }
 
   STOP = FALSE;
@@ -241,7 +247,7 @@ int llclose(int fd) {
 	frwrite(fd, DISC, 0x00);
 
   while (STOP==FALSE) {
-		unsigned char* buf = (unsigned char*) malloc(sizeof(unsigned char*)*255);
+		unsigned char* buf = (unsigned char*) malloc(MAX_SIZE);
     frread(fd,buf,10000);
 		free(buf);
   }
