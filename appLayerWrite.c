@@ -106,8 +106,8 @@ int main(int argc, char** argv){
   /* set input mode (non-canonical, no echo,...) */
   newtio.c_lflag = 0;
 
-  newtio.c_cc[VTIME] = 0;   /* inter-character timer unused */
-  newtio.c_cc[VMIN]  = 5;   /* blocking read until 5 chars received */
+  newtio.c_cc[VTIME] = 30;   /* inter-character timer unused */
+  newtio.c_cc[VMIN]  = 0;   /* blocking read until 5 chars received */
 
 /*
   VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
@@ -169,10 +169,6 @@ int main(int argc, char** argv){
 					      else
 						      sizebuf = st.st_size - transmittedData;
 
-          /*for(i=0; i < sizebuf;i++){
-          			buftmp[i] = buf[i + transmittedData];
-                fwrite(buftmp,sizeof(unsigned char*),1,file2);
-          }*/
           unsigned char* buftmp = (unsigned char*)malloc (sizebuf);
 
           memcpy(buftmp,buf + transmittedData, sizebuf);

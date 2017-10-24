@@ -4,7 +4,7 @@
 
 volatile int STOP=FALSE;
 int current_state, previous_state;
-int counter = 0;
+int counter = 1;
 int serialPortFD;
 int CN = 0x00;
 
@@ -14,7 +14,8 @@ void noInformationFrameWrite(int fd, char state, int n) {
 
         // Isn't information frame
         if( state == SET || state == DISC){
-            toWrite[0] = FLAG; toWrite[1] = 0x03; toWrite[2] = state; toWrite[3] = state^0x03; toWrite[4] = FLAG;}
+            toWrite[0] = FLAG; toWrite[1] = 0x03; toWrite[2] = state; toWrite[3] = state^0x03; toWrite[4] = FLAG;
+          printf("mandei set\n");}
         else if(state == UA ){
             toWrite[0] = FLAG; toWrite[1] = 0x01; toWrite[2] = state; toWrite[3] = state^0x01; toWrite[4] = FLAG;}
 
@@ -58,8 +59,8 @@ int frread(int fd, unsigned char * buf, int maxlen) {
     int ch;
 
 		//printf("fd : %d ",fd);
-    while(1) {
-        if((ch = read(fd, buf + n, 1)) < 0) {
+    while((ch = read(fd, buf + n, 1))) {
+        if(ch < 0) {
 					//printf(" ch %d\n", ch);
             return -1; // ERROR
            }
@@ -109,7 +110,7 @@ int llopen(int fd){
 		 c = frread(fd,buf,5);
 	 }
 
-	 counter = 0;
+	 counter = 1;
 	 STOP = FALSE;
 	 return c;
 }
@@ -125,7 +126,7 @@ int llclose(int fd){
 		 noInformationFrameWrite(fd,DISC, 5);
 		 c = frread(fd,buf,5);
   }
-	 counter = 0;
+	 counter = 1;
 	 return c;
 }
 
@@ -160,9 +161,9 @@ int llwrite(int fd, unsigned char* buf, int size){
 
     int x;
 
-    for(x = 0; x < size + 6 ; x++) {
+    /*for(x = 0; x < size + 6 ; x++) {
 		   printf(" [%d] = %x ", x, packet[x]);
-	  }
+	  }*/
     printf("\n");
 
     while(counter < 3 && STOP == FALSE){
@@ -172,7 +173,7 @@ int llwrite(int fd, unsigned char* buf, int size){
          //  sleep(1);
 		  c = frread(fd,buf2,5);
 	  }
-	 counter = 0;
+	 counter = 1;
 
 	 if(CN = 0x00)
 	   CN = 0x40;
