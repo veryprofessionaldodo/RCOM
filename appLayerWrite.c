@@ -64,7 +64,7 @@ unsigned char* buildDataPacket(char * buf,int sizeFile){
   packet[2] = L2;
 	packet[3] = L1;
 
-  for(i = 4; i < size-1; i++){
+  for(i = 4; i < size; i++){
     packet[i] = buf[i-4];
   }
 
@@ -147,21 +147,25 @@ int main(int argc, char** argv){
           printf("ERROR in llwrite start! \n");
 
         int i = 0;
-
-				unsigned char* buf = (unsigned char*) malloc (st.st_size);
-
-				fread(buf,sizeof(unsigned char*),st.st_size,file);    //read from file
-
         FILE* file2;
         file2 = fopen("yolo2.gif", "w");
           if (file2 == NULL) {
           perror ("Error opening file");
         printf("ERROR in llwrite! \n");
         }
+				unsigned char* buf = (unsigned char*) malloc (st.st_size);
+        printf("st_size = %d\n",st.st_size );
+
+				fread(buf,sizeof(unsigned char),st.st_size,file);    //read from file
+
+
+        /*for(i = 0; i < st.st_size ; i++) {
+           printf(" [%d] = %x ", i, buf[i]);
+        }*/
 
 
 
-	      int sizebuf = MAX_SIZE;
+	      int sizebuf;
         while(transmittedData < st.st_size){
           //printf("buf = %s\n",buf );
 					     if ((st.st_size - transmittedData) > MAX_SIZE)
@@ -172,24 +176,31 @@ int main(int argc, char** argv){
           unsigned char* buftmp = (unsigned char*)malloc (sizebuf);
 
           memcpy(buftmp,buf + transmittedData, sizebuf);
+  //        printf("strlen %d\n",strlen(buftmp) );
 
           fseek(file2,transmittedData,SEEK_SET);
-          fwrite(buftmp, sizeof(unsigned char *), sizebuf, file2);
 
-          if (transmittedData + sizebuf > st.st_size)  {
-            transmittedData += st.st_size;
-          }
-          else
-        	 transmittedData += sizebuf;
-
-          printf("transmitted data %d st.st_size %d sizebuf %d\n", transmittedData, st.st_size, sizebuf);
+          fwrite(buftmp, sizeof(unsigned char), sizebuf, file2);
+        //  printf("buf[8] %x buf[n] %x\n",buftmp[0],buftmp[sizebuf]);
 
 					unsigned char * CTRL_DATA =buildDataPacket(buftmp,sizebuf);      //create data packet
 
           free(buftmp);
 
-          if(llwrite(fd,CTRL_DATA,sizebuf) < 0)  //send control data packet
+          if(llwrite(fd,CTRL_DATA,sizebuf+4) < 0)  //send control data packet
             printf("ERROR in llwrite data! \n");
+
+
+          if (transmittedData + sizebuf > st.st_size)  {
+              transmittedData += st.st_size;
+            }
+        else
+             transmittedData += sizebuf;
+
+
+
+
+          printf("transmitted data %d st.st_size %d sizebuf %d\n", transmittedData, st.st_size, sizebuf);
         }
         fclose (file2);
         free(buf);
@@ -197,12 +208,10 @@ int main(int argc, char** argv){
         printf("finished writing!!!!\n");
         //send ctrl end
         unsigned char* CTRL_END = buildControlPacket(0x03,argv[2],st.st_size); //control end packet created
-        printf("olha e piças para ti caralho\n");
 
         if(llwrite(fd,CTRL_END,size) < 0)  //send control end packet
           printf("ERROR in llwrite end! \n");
         else{
-          printf("pqp esta merda\n");
          if(llclose(fd) < 0)
           printf("ERROR in llclose! \n");
          else

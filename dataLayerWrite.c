@@ -23,26 +23,26 @@ void noInformationFrameWrite(int fd, char state, int n) {
 
 }
 
-void processframe(int fd, char* buf, unsigned int n) {
+void processframe(int fd,unsigned  char* buf, unsigned int n) {
 	alarm(0);
-    printf("entrou no process frame\n");
+    printf("entrou no process frame %x \n",buf[2]);
     // Check if UA
-        if (buf[0] == FLAG && buf[1] == 0x03 && buf[2] == UA
-            && buf[3] == UA^0x03 && buf[4] == FLAG) {
-              printf("recebi um ua\n");
-	 	 			STOP = TRUE;
-        }
-        else if (buf[0] == FLAG && buf[1] == 0x01 && buf[2] == DISC
-            && buf[3] == DISC^0x01 && buf[4] == FLAG) {
-              printf("recebi um disc\n");
-              noInformationFrameWrite(fd,UA,5);
-				 			STOP = TRUE;
-        }
-        else if(buf[2] == RR || buf[2] == RR^0x40){
+    if (buf[0] == FLAG && buf[1] == 0x03 && buf[2] == UA
+          && buf[3] == UA^0x03 && buf[4] == FLAG) {
+          printf("recebi um ua\n");
+	 			  STOP = TRUE;
+    }
+    else if (buf[0] == FLAG && buf[1] == 0x01 && buf[2] == DISC
+      && buf[3] == DISC^0x01 && buf[4] == FLAG) {
+          printf("recebi um disc\n");
+          noInformationFrameWrite(fd,UA,5);
+					STOP = TRUE;
+    }
+    else if(buf[2] == RR || buf[2] == RR^0x80){
           printf("recebi um rr\n");
-			STOP = TRUE;
-        }
-		else if(buf[2] == REJ || buf[2] == REJ^0x40){
+		    	STOP = TRUE;
+    }
+		else if(buf[2] == REJ || buf[2] == REJ^0x80){
       printf("recebi um rej\n");
 			STOP = FALSE;
         }
@@ -99,15 +99,16 @@ void incCounter(){
 int llopen(int fd){
 	printf("Entrei no llopen\n");
 	int c = -1;
-	char buf[255];
 	serialPortFD = fd;
 	(void) signal(SIGALRM, incCounter);
 	alarm(3);
 	previous_state = CONNECTING;
 
   while(counter < 3 && STOP == FALSE){
+    unsigned char * buf = (unsigned char *)malloc(255);
 		 noInformationFrameWrite(fd,SET, 5);
 		 c = frread(fd,buf,5);
+     free(buf);
 	 }
 
 	 counter = 1;
@@ -119,12 +120,13 @@ int llclose(int fd){
 	printf("Entrou no llclose \n" );
 	STOP = FALSE;
 	int c = -1;
-	char buf[255];
 	alarm(3);
 	previous_state = CONNECTING;
 	while(counter < 3 && STOP==FALSE){
+    unsigned char * buf = (unsigned char *)malloc(255);
 		 noInformationFrameWrite(fd,DISC, 5);
 		 c = frread(fd,buf,5);
+     free(buf);
   }
 	 counter = 1;
 	 return c;
@@ -140,7 +142,7 @@ int llwrite(int fd, unsigned char* buf, int size){
 	   BCC2 = BCC2^buf[i];
    }
 
-   stuff(buf,&size);
+   //stuff(buf,&size);
    unsigned char * packet = (unsigned char *) malloc(size+6);
    packet[0] = FLAG;
    packet[1] = 0x03;
@@ -156,7 +158,6 @@ int llwrite(int fd, unsigned char* buf, int size){
     //waiting for response;
 	  STOP = FALSE;
 	  int c = -1;
-	  char buf2[255];
 	  alarm(3);
 
     int x;
@@ -164,14 +165,15 @@ int llwrite(int fd, unsigned char* buf, int size){
     /*for(x = 0; x < size + 6 ; x++) {
 		   printf(" [%d] = %x ", x, packet[x]);
 	  }*/
-    printf("\n");
 
     while(counter < 3 && STOP == FALSE){
-		  if(write(fd,packet,size + 10 ) != size + 6 ){
+      unsigned char * buf2 = (unsigned char *)malloc(255);
+		  if(write(fd,packet,size + 6 ) != size + 6 ){
 		     printf("Error sending frame\n");
 		  };
          //  sleep(1);
 		  c = frread(fd,buf2,5);
+      free(buf2);
 	  }
 	 counter = 1;
 
