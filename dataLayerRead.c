@@ -2,22 +2,9 @@
 
 #include "dataLayerRead.h"
 
-#define FLAG 0x7e
-#define SET 0x03
-#define DISC 0x0B
-#define UA 0x07
-#define RR 0x05
-#define REJ 0x01
-#define NS0 0x40
-#define NS1 0x00
-#define NR0 0x80
-#define NR1 0x00
-#define CONTROL_PACKET_START 0x02
-#define CONTROL_PACKET_END 0x03
-
 volatile int STOP=FALSE;
 
-FILE * file;
+FILE* file;
 unsigned int filesize;
 unsigned int receivedData = 0;
 
@@ -41,7 +28,6 @@ int frread(int fd, unsigned char * buf, int maxlen) {
 		//printf("ler %x n %d\n", buf[n-1], n);
 
 		if(buf[n-1] != FLAG && n == maxlen) {
-			printf("piças\n");
 			n=0;
 			continue;
 		}
@@ -117,9 +103,7 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 
 		int i;
 
-		/*for (i = 0 ; i < n; i++) {
-			printf("buf %d %x\n",i, buf[i]);
-		}*/
+
 
 	// Control Start
 	if (buf[4] == CONTROL_PACKET_START) { // We chose the first T to be filename, and the second to be size
@@ -139,19 +123,11 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 	  int nextPos = nameSize * sizeof(char);
 		unsigned int fileInformationSize = (unsigned int) buf[nextPos+1];
 
-
-		// printf("fileinformationsize %x\n", fileInformationSize);
-
 		unsigned char *filesizeChar = (unsigned char *) malloc(fileInformationSize * sizeof(unsigned char*));
 
 		for (x = 0; x < 4; x++) {
 			filesizeChar[x] = buf[x+nextPos+9];
 		}
-
-		/*filesizeChar[0] = (filesize>>24) & 0xFF;
-		filesizeChar[1] = (filesize>>16) & 0xFF;
-		filesizeChar[2] = (filesize>>8) & 0xFF;
-		filesizeChar[3] = filesize & 0xFF;*/
 
 		filesize = *(int *)filesizeChar;
 
@@ -179,20 +155,29 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 
 		int i;
 
-		printf("tamanho %d\n", numPackets);
+		printf("tamanho %d  n %d\n", numPackets, n);
+
 		unsigned char * buftmp = (unsigned char*)malloc(numPackets);
 
 		memcpy(buftmp, buf + 8, numPackets);
 
-		destuff(buftmp);
+		/*for (i = 0; i < numPackets; i++) {
+			printf("buftmp [%d] = %x\n", i, buftmp[i]);
+		}*/
+    //destuff(buftmp);
+		/*for (i = 0 ; i < n; i++) {
+			printf("buf %d %x\n",i, buf[i]);
+		}*/
 
 		fseek(file, receivedData, SEEK_SET);
 
-		//printf("buftmp %s", buftmp);
+		fwrite(buftmp, sizeof(unsigned char), numPackets, file);
 
-		fwrite(buftmp, sizeof(unsigned char*), numPackets, file);
 
-		receivedData += numPackets;
+		receivedData += (numPackets);
+		printf("escrevi no ficheiro %d packets\n", receivedData);
+
+
 
 		frwrite(fd, RR, r);
   }
@@ -215,10 +200,13 @@ void frwrite(int fd, char state, char NR) {
 		toWrite[0] = FLAG; toWrite[1] = 0x01; toWrite[2] = state; toWrite[3] = state^0x01; toWrite[4] = FLAG;
 	}
   else if (state == RR || state == REJ) {
+		printf("mandei um %x para o fd %d\n", state, fd);
     toWrite[0] = FLAG; toWrite[1] = 0x01; toWrite[2] = state^NR; toWrite[3] = state^0x01; toWrite[4] = FLAG;
   }
 
-	write(fd, toWrite, sizeof(toWrite));
+	printf("buf[2] %x \n", toWrite[2]);
+
+	write(fd, toWrite, 5);
 }
 
 int llopen(int fd) {
@@ -226,7 +214,7 @@ int llopen(int fd) {
 
   while (STOP==FALSE) {
 	unsigned char* buf = (unsigned char*) malloc(MAX_SIZE);
-    frread(fd,buf,10000);
+    frread(fd,buf,MAX_SIZE);
 	free(buf);
   }
 
@@ -241,7 +229,7 @@ int llread(int fd) {
 
   while (STOP==FALSE) {
     unsigned char* buf = (unsigned char*) malloc(MAX_SIZE);
-    frread(fd,buf,10000);
+    frread(fd,buf,MAX_SIZE);
 	free(buf);
   }
 
@@ -256,7 +244,8 @@ int llclose(int fd) {
 
   while (STOP==FALSE) {
 		unsigned char* buf = (unsigned char*) malloc(MAX_SIZE);
-    frread(fd,buf,10000);
+		printf("estou a ler\n");
+    frread(fd,buf,MAX_SIZE);
 		free(buf);
   }
   return 0;

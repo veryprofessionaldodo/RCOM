@@ -14,7 +14,20 @@
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
 #define TRUE 1
-#define MAX_SIZE 1024
+#define MAX_SIZE 2048 
+#define FLAG 0x7e
+#define SET 0x03
+#define DISC 0x0B
+#define UA 0x07
+#define RR 0x05
+#define REJ 0x01
+#define NS0 0x40
+#define NS1 0x00
+#define NR0 0x80
+#define NR1 0x00
+#define CONTROL_PACKET_START 0x02
+#define CONTROL_PACKET_END 0x03
+
 
 
 void frwrite(int fd, char state, char NR);
