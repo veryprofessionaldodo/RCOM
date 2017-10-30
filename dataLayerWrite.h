@@ -22,7 +22,7 @@
 #define UA 0x07
 #define DISC 0x0b
 #define ESC 0x5e
-#define MAX_SIZE 512
+#define MAX_SIZE 1024
 #define RR 0x05
 #define REJ 0x01
 
@@ -56,6 +56,6 @@ int llclose(int fd);
 
 int llwrite(int fd, unsigned char* buf,int size);
 
-void stuff(unsigned char *buf, unsigned int* size);
+unsigned char * stuff(unsigned char *buf, unsigned int* size);
 
 #endif

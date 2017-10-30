@@ -140,7 +140,6 @@ int main(int argc, char** argv){
         struct stat st;
         stat(argv[2], &st);
         int size = 5+ 4+ strlen(argv[2]);
-        printf("size %d\n", size);
 
         unsigned char* CTRL_START = buildControlPacket(0x02,argv[2],st.st_size); //control start packet created
 
@@ -155,39 +154,29 @@ int main(int argc, char** argv){
         printf("ERROR in llwrite! \n");
         }
 				unsigned char* buf = (unsigned char*) malloc (st.st_size);
-        printf("st_size = %d\n",st.st_size );
 
 				fread(buf,sizeof(unsigned char),st.st_size,file);    //read from file
 
-
-        /*for(i = 0; i < st.st_size ; i++) {
-           printf(" [%d] = %x ", i, buf[i]);
-        }*/
-
-
-
-	      int sizebuf;
+        int sizebuf;
         while(transmittedData < st.st_size){
-          //printf("buf = %s\n",buf );
-					     if ((st.st_size - transmittedData) > MAX_SIZE)
+        	     if ((st.st_size - transmittedData) > MAX_SIZE)
                   sizebuf = MAX_SIZE;
 					      else
-						      sizebuf = st.st_size - transmittedData;
+                  sizebuf = st.st_size - transmittedData;
+
 
           unsigned char* buftmp = (unsigned char*)malloc (sizebuf);
 
           memcpy(buftmp,buf + transmittedData, sizebuf);
-  //        printf("strlen %d\n",strlen(buftmp) );
 
           fseek(file2,transmittedData,SEEK_SET);
 
           fwrite(buftmp, sizeof(unsigned char), sizebuf, file2);
-        //  printf("buf[8] %x buf[n] %x\n",buftmp[0],buftmp[sizebuf]);
 
 					unsigned char * CTRL_DATA =buildDataPacket(buftmp,sizebuf);      //create data packet
 
           free(buftmp);
-
+ 
           if(llwrite(fd,CTRL_DATA,sizebuf+4) < 0)  //send control data packet
             printf("ERROR in llwrite data! \n");
 
@@ -198,26 +187,23 @@ int main(int argc, char** argv){
         else
              transmittedData += sizebuf;
 
-
-
-
-          printf("transmitted data %d st.st_size %d sizebuf %d\n", transmittedData, st.st_size, sizebuf);
+        printf("Has transmitted %d out of %d", transmittedData, st.st_size);
         }
         fclose (file2);
         free(buf);
 
-        printf("finished writing!!!!\n");
+        printf("Finished writing.\n");
         //send ctrl end
         unsigned char* CTRL_END = buildControlPacket(0x03,argv[2],st.st_size); //control end packet created
 
         if(llwrite(fd,CTRL_END,size) < 0)  //send control end packet
           printf("ERROR in llwrite end! \n");
         else{
-         if(llclose(fd) < 0)
+        if(llclose(fd) < 0)
           printf("ERROR in llclose! \n");
-         else
+        else
           return 0;
-         }
+        }
       }
 
     if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {

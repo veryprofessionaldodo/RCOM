@@ -9,6 +9,8 @@ int counter = 1;
 int serialPortFD;
 int CN = 0x00;
 
+unsigned char* previousFrameSent;
+unsigned int previousFrameSize;
 
 void noInformationFrameWrite(int fd, char state, int n) {
     unsigned char toWrite[5];
@@ -16,42 +18,43 @@ void noInformationFrameWrite(int fd, char state, int n) {
         // Isn't information frame
         if( state == SET || state == DISC){
             toWrite[0] = FLAG; toWrite[1] = 0x03; toWrite[2] = state; toWrite[3] = state^0x03; toWrite[4] = FLAG;
-          printf("mandei set ou disc\n");}
+            printf("Sent SET or DISC.\n");
+        }
         else if(state == UA ){
-            toWrite[0] = FLAG; toWrite[1] = 0x01; toWrite[2] = state; toWrite[3] = state^0x01; toWrite[4] = FLAG;}
+            toWrite[0] = FLAG; toWrite[1] = 0x01; toWrite[2] = state; toWrite[3] = state^0x01; toWrite[4] = FLAG;
+            printf("Sent UA.\n");
+        }
 
-	    write(fd, toWrite, sizeof(toWrite));
-
-}
+        previousFrameSent = toWrite;
+        previousFrameSize = 5;
+	      write(fd, toWrite, sizeof(toWrite));
+  }
 
 void processframe(int fd,unsigned  char* buf, unsigned int n) {
-	//alarm(0);
-    printf("entrou no process frame %x \n",buf[2]);
+	  //alarm(0);
     // Check if UA
     if (buf[0] == FLAG && buf[1] == 0x03 && buf[2] == UA
-          && buf[3] == UA^0x03 && buf[4] == FLAG) {
-          printf("recebi um ua\n");
+          && buf[3] == (UA^0x03) && buf[4] == FLAG) {
+          printf("Received UA.\n");
 	 			  STOP = TRUE;
     }
     else if (buf[0] == FLAG && buf[1] == 0x01 && buf[2] == DISC
-      && buf[3] == DISC^0x01 && buf[4] == FLAG) {
-          printf("recebi um disc\n");
+      && buf[3] == (DISC^0x01) && buf[4] == FLAG) {
+          printf("Received DISC.\n");
           noInformationFrameWrite(fd,UA,5);
 					STOP2 = TRUE;
     }
-    else if(buf[2] == RR || buf[2] == RR^0x80){
-          printf("recebi um rr\n");
+    else if(buf[2] == RR || buf[2] == (RR^0x80)){
+          printf("Received RR.\n");
 		    	STOP = TRUE;
     }
-		else if(buf[2] == REJ || buf[2] == REJ^0x80){
-      printf("recebi um rej\n");
-			STOP = FALSE;
-        }
+		else if(buf[2] == REJ || buf[2] == (REJ^0x80)){
+          printf("Received REJ, resending.\n");
+          STOP = FALSE;
+    }
 		else { // ERROR
-
+          printf("Received ERROR.\n");
 		}
-
-
 }
 
 
@@ -59,13 +62,11 @@ int frread(int fd, unsigned char * buf, int maxlen) {
     int n=0;
     int ch;
 
-		//printf("fd : %d ",fd);
     while((ch = read(fd, buf + n, 1))) {
         if(ch < 0) {
-					//printf(" ch %d\n", ch);
             return -1; // ERROR
            }
-        //printf("ceasdas %d\n", (int) buf[n]);
+
         if(n==0 && buf[n] != FLAG)
             continue;
 
@@ -87,7 +88,6 @@ int frread(int fd, unsigned char * buf, int maxlen) {
 
 }
 
-
 void incCounter(){
 	counter++;
 	if (counter >= 3) {
@@ -98,7 +98,7 @@ void incCounter(){
 }
 
 int llopen(int fd){
-	printf("Entrei no llopen\n");
+	printf("Entered llopen.\n");
 	int c = -1;
 	serialPortFD = fd;
 	(void) signal(SIGALRM, incCounter);
@@ -118,7 +118,7 @@ int llopen(int fd){
 }
 
 int llclose(int fd){
-	printf("Entrou no llclose \n" );
+	printf("Entered llclose. \n" );
 	STOP = FALSE;
 	int c = -1;
 	alarm(3);
@@ -134,49 +134,61 @@ int llclose(int fd){
 }
 
 int llwrite(int fd, unsigned char* buf, int size){
-  printf("Entrei no llwrite com size %d\n", size);
+  printf("Entered llwrite.\n");
 
   // Xor BCC2, stuff, fazer trama
-  unsigned int i = 0;
-  unsigned char BCC2 = 0x00;
-  for(i = 0; i < size;i++){
-	   BCC2 = BCC2^buf[i];
-   }
-   buf = realloc(buf, size + sizeof(unsigned char*));
-   buf[size] = BCC2;
-   size++;
-
-   stuff(buf,&size);
-   int x;
-   /*for(x = 0; x < size ; x++) {
-      printf(" buf[%d] = %x", x, buf[x]);
-   }*/
-
-   unsigned char * packet = (unsigned char *) malloc(size+6);
-   packet[0] = FLAG;
-   packet[1] = 0x03;
-   packet[2] = CN;
-   packet[3] = packet[1]^packet[2];
-
-   for(i = 0; i < size;i++){
-	    packet[i+4] = buf[i];
+    unsigned int i = 0;
+    unsigned char BCC2 = 0x00;
+    for(i = 0; i < size;i++){
+	     BCC2 = (BCC2^buf[i]);
     }
-    packet[size + 4] = BCC2;
-    packet[size + 5] = FLAG;
+    buf = realloc(buf, size + 1);
+    printf("BCC2 %x\n", BCC2);
+    buf[size] = BCC2;
+    size++;
+    buf = stuff(buf,&size);
+
+
+    /*for(i= 0; i < size; i++) {
+      printf("buf[%d] %x\n", i, buf[i]);
+    }*/
+
+    int x;
+
+    unsigned char * packet = (unsigned char *) malloc(size+6);
+    packet[0] = FLAG;
+    packet[1] = 0x03;
+    packet[2] = CN;
+    packet[3] = packet[1]^packet[2];
+
+    for(i = 0; i < size;i++){
+	     packet[i+4] = buf[i];
+     }
+
+    packet[size + 4] = FLAG;
+
 
     //waiting for response;
-	  STOP = FALSE;
-	  int c = -1;
-	  alarm(3);
+	   STOP = FALSE;
+     int c = -1;
 
-    while(counter < 3 && STOP == FALSE){
-      unsigned char * buf2 = (unsigned char *)malloc(255);
-		  if(write(fd,packet,size + 6 ) != size + 6 ){
-		     printf("Error sending frame\n");
-		  };
-         //  sleep(1);
-		  c = frread(fd,buf2,5);
-      free(buf2);
+
+     while(counter < 3 && STOP == FALSE){
+       unsigned char * buf2 = (unsigned char *)malloc(255);
+       alarm(3);
+       previousFrameSent = packet;
+       previousFrameSize = size + 5;
+       int z;
+       /*for (z = 0; z < size+5; z++) {
+         printf(" packet[%d] %x\n ", z, packet[z]);
+       }*/
+       printf("\n");
+		   if(write(fd,packet,size + 5) != size + 5 ){
+		       printf("Error sending frame\n");
+		   };
+
+		   c = frread(fd,buf2,5);
+       free(buf2);
 	  }
 	 counter = 1;
 
@@ -190,26 +202,41 @@ int llwrite(int fd, unsigned char* buf, int size){
 	 return c;
 }
 
-void stuff(unsigned char *buf, unsigned int* size){
+unsigned char * stuff(unsigned char *buf, unsigned int* size){
 
+  int buf2Index = 0;
   int sizetmp = *size;
-	int i;
-	for (i = 0; i < sizetmp; i++) {
-		if (buf[i] == 0x7e) { // Needs to be stuffed, it's an escape flag
-			buf = realloc(buf, sizetmp + sizeof(unsigned char*));
-			memmove(buf + i + 1, buf + i, sizetmp- i);
-			buf[i] = 0x7d;
-			buf[i+1] = 0x5e;
-      sizetmp++;
-		}
-		else if (buf[i] == 0x7d) { // Needs to be stuffed, it's an escape flag
-			buf = realloc(buf, sizetmp + sizeof(unsigned char*));
-			memmove(buf + i + 1, buf + i, sizetmp- i);
-			buf[i] = 0x7d;
-			buf[i+1] = 0x5d;
-      sizetmp++;
-		}
+  int z;
 
-	}
-  *size = sizetmp;
+  unsigned char * buf2 = (unsigned char *) malloc(sizetmp);
+  //buf2 = buf;
+
+  int i;
+  for (i = 0; i < sizetmp; i++, buf2Index++) {
+
+    if (buf[i] == 0x7e) { // Needs to be stuffed, it's an escape flag
+      buf2 = realloc(buf2, sizetmp + 1);
+      printf(" stuff1 ");
+      buf2[buf2Index] = 0x7d;
+      buf2[buf2Index+1] = 0x5e;
+      buf2Index++;
+    }
+    else if (buf[i] == 0x7d) { // Needs to be stuffed, it's an escape flag
+      printf(" stuff1 ");
+      buf2 = realloc(buf2, sizetmp + 1);
+      buf2[buf2Index] = 0x7d;
+      buf2[buf2Index+1] = 0x5d;
+      buf2Index++;
+    }
+    else {
+      buf2[buf2Index] = buf[i];
+    }
+
+  }
+
+  for (z = 0; z < buf2Index; z++) {
+    printf("pos[%d] %x\n", z, buf2[z]);
+  }
+  *size = buf2Index;
+  return buf2;
 }
