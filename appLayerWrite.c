@@ -68,6 +68,7 @@ unsigned char* buildDataPacket(char * buf,int sizeFile){
     packet[i] = buf[i-4];
   }
 
+  nSequence++;
   return packet;
 
 }
@@ -179,12 +180,6 @@ int main(int argc, char** argv){
   //        printf("strlen %d\n",strlen(buftmp) );
 
           fseek(file2,transmittedData,SEEK_SET);
-
-          int x;
-          for (x = 0; x < sizebuf; x++) {
-            if (buftmp[x] == 0x7e)
-              printf("DAMN AFINAL HAVIA AQUI Um");
-          }
 
           fwrite(buftmp, sizeof(unsigned char), sizebuf, file2);
         //  printf("buf[8] %x buf[n] %x\n",buftmp[0],buftmp[sizebuf]);

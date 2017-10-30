@@ -169,10 +169,6 @@ int llwrite(int fd, unsigned char* buf, int size){
 	  int c = -1;
 	  alarm(3);
 
-
-
-
-
     while(counter < 3 && STOP == FALSE){
       unsigned char * buf2 = (unsigned char *)malloc(255);
 		  if(write(fd,packet,size + 6 ) != size + 6 ){
@@ -200,7 +196,6 @@ void stuff(unsigned char *buf, unsigned int* size){
 	int i;
 	for (i = 0; i < sizetmp; i++) {
 		if (buf[i] == 0x7e) { // Needs to be stuffed, it's an escape flag
-      printf("\nOra merda sotores\n");
 			buf = realloc(buf, sizetmp + sizeof(unsigned char*));
 			memmove(buf + i + 1, buf + i, sizetmp- i);
 			buf[i] = 0x7d;
@@ -208,7 +203,6 @@ void stuff(unsigned char *buf, unsigned int* size){
       sizetmp++;
 		}
 		else if (buf[i] == 0x7d) { // Needs to be stuffed, it's an escape flag
-      printf("\nCalma lá amigos\n");
 			buf = realloc(buf, sizetmp + sizeof(unsigned char*));
 			memmove(buf + i + 1, buf + i, sizetmp- i);
 			buf[i] = 0x7d;
