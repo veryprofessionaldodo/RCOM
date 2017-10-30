@@ -25,24 +25,25 @@ int frread(int fd, unsigned char * buf, int maxlen) {
 
 		n++;
 
-		//printf("ler %x n %d\n", buf[n-1], n);
-
 		if(buf[n-1] != FLAG && n == maxlen) {
 			n=0;
 			continue;
 		}
 
 		if(buf[n-1] == FLAG && n > 4) {
-
  			processframe(fd, buf, n);
 			return 0;
 		}
 	}
-	printf("\n");
 	return 0;
 }
 
 int hasErrors(unsigned char * buf, int size) {
+	int z;
+	for (z = 40; z < size; z++) {
+		printf(" packet[%d] %x ", z, buf[z]);
+	}
+
   if (size == 5) {
 		if (buf[2] == SET || buf[2] == DISC) {
 				if ((buf[2]^0x03) != buf[3]) {
@@ -71,22 +72,21 @@ int hasErrors(unsigned char * buf, int size) {
 
 			if ((buf[2]^0x03) != buf[3]) {
 				printf("ERROR ON Information Header!\n");
-
 				return TRUE;
 			}
 			else { // Check errors in message
-					int j;
-					for (j = 4; j < size-1;j++) {
-						BCC2 = BCC2^buf[j];
+					int x;
+					for (x = 4; x < size-2;x++) {
+						BCC2 = (BCC2^buf[x]);
+						//printf(" %x ")
 					}
+					printf("My bcc2 is %x, theirs is %x and size is %d\n", BCC2, buf[size-2], size);
 					if (BCC2 != buf[size-2]){
-						printf("ERROR ON Information Frame!\n");
-
 						int z;
-
-						for (z = 0; z< size; z++) {
+						for (z = 0; z < size; z++)
 							printf("buf[%d] %x\n", z, buf[z]);
-						}
+							exit(0);
+						printf("ERROR ON Information Frame!\n");
 						return TRUE;
 					}
 					else {
@@ -151,7 +151,9 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 
 	int i = n;
 
+	printf("i antes %d \n", i);
 	buf = destuff(buf, &i);
+	printf("i depois %d \n", i);
 
    if (hasErrors(buf,i)) {
 	      frwrite(fd, REJ, r);
@@ -197,8 +199,7 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 		frwrite(fd, RR, r);
 	}
 
-
-	  // Data Packet
+  	// Data Packet
   	else if (buf[4] == 0x01) {
 		int i;
 		unsigned char * buftmp = (unsigned char*)malloc(n-5);
@@ -207,7 +208,9 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 
 		int sizeOfBuftmp = n-5;
 
+		printf("sizeofbuftmp antes %d\n", sizeOfBuftmp);
     	buftmp = destuff(buftmp,&sizeOfBuftmp);
+		printf("sizeofbuftmp depois %d\n", sizeOfBuftmp);
 
 		int numPackets = buftmp[2]*256 + buftmp[3];
 
@@ -221,7 +224,7 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 		free(buftmp);
 
 		frwrite(fd, RR, r);
-  }
+  	}
 
 	else { // Not a valid packet
 		frwrite(fd, REJ, r);
@@ -295,26 +298,26 @@ int llclose(int fd) {
 }
 
 unsigned char* destuff(unsigned char * buf, int * size) {
-  int i, buf2Index = 0;
-	int sizetmp = *size;
-	int arraySize = sizetmp;
-	unsigned char * buf2 = (unsigned char *)malloc(sizetmp);
-	for (i = 0; i < sizetmp; i++, buf2Index++) {
-	if (buf[i] == 0x7d && buf[i+1] == 0x5e) {
-			buf2[buf2Index] = 0x7e;
-			i++;
-			arraySize--;
-		}
-    else if (buf[i] == 0x7d && buf[i+1] == 0x5d) {
-			buf2[buf2Index] = 0x7d;
-			arraySize--;
-			i++;
-		}
-		else{
-			buf2[buf2Index] = buf[i];
-		}
-  	}
-  	*size = arraySize;
-	buf2 = realloc(buf2,arraySize);
-	return buf2;
+	int i, buf2Index = 0;
+  int sizetmp = *size;
+  int arraySize = sizetmp;
+  unsigned char * buf2 = (unsigned char *)malloc(sizetmp);
+  for (i = 0; i < sizetmp; i++, buf2Index++) {
+  if (buf[i] == 0x7d && buf[i+1] == 0x5e) {
+		  buf2[buf2Index] = 0x7e;
+		  i++;
+		  arraySize--;
+	  }
+  else if (buf[i] == 0x7d && buf[i+1] == 0x5d) {
+		  buf2[buf2Index] = 0x7d;
+		  arraySize--;
+		  i++;
+	  }
+	  else{
+		  buf2[buf2Index] = buf[i];
+	  }
+  }
+  *size = arraySize;
+  buf2 = realloc(buf2,arraySize);
+  return buf2;
 }
