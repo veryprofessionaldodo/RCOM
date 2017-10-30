@@ -133,7 +133,7 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 
 		printf("filesize %d\n", filesize);
 
-	  file = fopen(filename, "w");
+	  file = fopen(filename, "wb");
 		if (file == NULL)
 			printf("Error opening file!\n");
 
@@ -144,40 +144,48 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 	// Control End
 	else if (buf[4] == CONTROL_PACKET_END) {
 		printf("pressupostamente estou a ler um end\n");
+		fclose(file);
 		frwrite(fd, RR, r);
 	}
 
 
 	  // Data Packet
   else if (buf[4] == 0x01) {
-		printf("pressupostamente estou a ler dados mesmo\n");
-		int numPackets = buf[6]*256 + buf[7];
+		//printf("pressupostamente estou a ler dados mesmo\n");
+
 
 		int i;
 
-		printf("tamanho %d  n %d\n", numPackets, n);
+		//printf("tamanho %d  n %d\n", n-10, n);
 
-		unsigned char * buftmp = (unsigned char*)malloc(numPackets);
+		unsigned char * buftmp = (unsigned char*)malloc(n-5);
 
-		memcpy(buftmp, buf + 8, numPackets);
+		memcpy(buftmp, buf + 4, n-5);
 
-		/*for (i = 0; i < numPackets; i++) {
-			printf("buftmp [%d] = %x\n", i, buftmp[i]);
+		/*for (i = 0; i < n; i++) {
+			printf("buf [%d] = %x", i, buf[i]);
 		}*/
-    //destuff(buftmp);
-		/*for (i = 0 ; i < n; i++) {
-			printf("buf %d %x\n",i, buf[i]);
+
+    buftmp = destuff(buftmp,n-5);
+
+		int numPackets = buftmp[2]*256 + buftmp[3];
+
+		//printf("recebido %d  n %d numpackets %d\n", receivedData, n,numPackets);
+
+		/*for (i = 0 ; i < n-6; i++) {
+			printf("buf [%d] = %x ",i, buftmp[i]);
 		}*/
 
 		fseek(file, receivedData, SEEK_SET);
 
-		fwrite(buftmp, sizeof(unsigned char), numPackets, file);
-
+		for(i = 0; i < numPackets ;i++){
+			fwrite(&buftmp[4+i], sizeof(unsigned char), 1, file);
+		//printf("buf [%d] = %x ",i, buftmp[i]);
+		}
 
 		receivedData += (numPackets);
-		printf("escrevi no ficheiro %d packets\n", receivedData);
-
-
+		//printf("escrevi no ficheiro %d packets\n", receivedData);
+		free(buftmp);
 
 		frwrite(fd, RR, r);
   }
@@ -251,26 +259,30 @@ int llclose(int fd) {
   return 0;
 }
 
-unsigned char* destuff(unsigned char * buf) {
-  int i;
-
-  for (i = 0; i < sizeof(buf) - 1 * sizeof(unsigned char*); i++) {
+unsigned char* destuff(unsigned char * buf, int size) {
+  int i, buf2Index = 0;
+	int sizetmp = size;
+	unsigned char * buf2 = (unsigned char *)malloc(size);
+	for (i = 0; i < size; i++, buf2Index++) {
+		if(buf[i] == 0x7d) {
+			printf("potencialmente destuff, seguinte é %x \n", buf[i+1]);
+		}
     if (buf[i] == 0x7d && buf[i+1] == 0x5e) {
-      buf[i] = 0x7e;
-      buf = memmove(buf + i, buf + 2, sizeof(buf)- (i+1)*sizeof(unsigned char*));
-      buf = realloc(buf, sizeof(buf)-sizeof(unsigned char*));
-			if (buf == NULL)
-				printf("Realloc failure!\n");
-
-    }
-    if (buf[i] == 0x7d && buf[i+1] == 0x5d) {
-      buf[i] = 0x7d;
-      memmove(buf + i, buf + 2, sizeof(buf)- (i+1)*sizeof(unsigned char*));
-      buf = realloc(buf, sizeof(buf)-sizeof(unsigned char*));
-			if (buf == NULL)
-				printf("Realloc failure!\n");
-    }
+			printf("entrei no destuff\n");
+			buf2[buf2Index] = 0x7e;
+			i++;
+			sizetmp--;
+		}
+    else if (buf[i] == 0x7d && buf[i+1] == 0x5d) {
+			printf("entrei no destuff2\n");
+			buf2[buf2Index] = 0x7d;
+			sizetmp--;
+			i++;
+		}
+		else{
+			buf2[buf2Index] = buf[i];
+		}
   }
-
-  return buf;
+	buf2 = realloc(buf2,sizetmp);
+	return buf2;
 }
