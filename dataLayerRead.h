@@ -28,8 +28,6 @@
 #define CONTROL_PACKET_START 0x02
 #define CONTROL_PACKET_END 0x03
 
-
-
 void frwrite(int fd, char state, char NR);
 
 int processframe(int fd, unsigned char* buf, int n);

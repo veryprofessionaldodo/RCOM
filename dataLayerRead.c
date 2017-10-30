@@ -69,21 +69,24 @@ int hasErrors(unsigned char * buf, int size) {
 	else {
 			unsigned char BCC2 = 0x00;
 
-			if ((buf[2]^0x40) != buf[3] && (buf[2]) != buf[3]) {
+			if ((buf[2]^0x03) != buf[3]) {
 				printf("ERROR ON Information Header!\n");
-				int z;
-				for (z = 0; z< size; z++) {
-					printf("buf[%d] %x\n", z, buf[z]);
-				}
+
 				return TRUE;
 			}
 			else { // Check errors in message
 					int j;
-					for (j = 4; j < size-2;j++) {
+					for (j = 4; j < size-1;j++) {
 						BCC2 = BCC2^buf[j];
 					}
 					if (BCC2 != buf[size-2]){
 						printf("ERROR ON Information Frame!\n");
+
+						int z;
+
+						for (z = 0; z< size; z++) {
+							printf("buf[%d] %x\n", z, buf[z]);
+						}
 						return TRUE;
 					}
 					else {
@@ -111,14 +114,14 @@ int processframe(int fd, unsigned char* buf, int n) {
 		// Check if SET
 		if (buf[0] == FLAG && buf[1] == 0x03 && buf[2] == SET
 			&& buf[3] == SET^0x03 && buf[4] == FLAG) {
-	        printf("recebi um set\n");
+	        printf("Received SET.\n");
 	        STOP = TRUE;
 			return 0;
 		}
 		// Check if DISC
 		else if (buf[0] == FLAG && buf[1] == 0x03 && buf[2] == DISC
 			&& buf[3] == DISC^0x03 && buf[4] == FLAG) {
-           printf("recebi um disc\n");
+           printf("Received DISC.\n");
            STOP = TRUE;
            return 0;
 		}
@@ -126,6 +129,7 @@ int processframe(int fd, unsigned char* buf, int n) {
 		// Check if UA
 		else if (buf[0] == FLAG && buf[1] == 0x01 && buf[2] == UA
 			&& buf[3] == DISC^0x01 && buf[4] == FLAG) {
+			 printf("Received UA.\n");
 			 STOP = TRUE;
 			 return 0;
 		}
@@ -139,26 +143,27 @@ int processframe(int fd, unsigned char* buf, int n) {
 }
 
 void processInformationFrame(int fd, unsigned char* buf, int n) {
-	//printf("lendo informacao\n");
-	//printf("buf merda %x e final %x\n", buf[0], buf[n-1]);
-
 	char r;
   if (buf[2] == NS0)
     r = NR1;
   else
     r = NR0;
 
-		int i;
+	int i = n;
 
+	buf = destuff(buf, &i);
 
+   if (hasErrors(buf,i)) {
+	      frwrite(fd, REJ, r);
+	      return;
+   }
 
 	// Control Start
 	if (buf[4] == CONTROL_PACKET_START) { // We chose the first T to be filename, and the second to be size
-    printf("pressupostamente estou a ler um start\n");
-    // Filename
-		unsigned char* filename;
+		printf("Reading Control Packet Start.\n");
+    	unsigned char* filename;
 
-    int nameSize = buf[6];
+    	int nameSize = buf[6];
 
 		filename = (unsigned char *) malloc(nameSize * sizeof(unsigned char*));
 
@@ -167,7 +172,7 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 			filename[x] = buf[x+7];
 		}
 
-	  int nextPos = nameSize * sizeof(char);
+	  	int nextPos = nameSize * sizeof(char);
 		unsigned int fileInformationSize = (unsigned int) buf[nextPos+1];
 
 		unsigned char *filesizeChar = (unsigned char *) malloc(fileInformationSize * sizeof(unsigned char*));
@@ -178,64 +183,41 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 
 		filesize = *(int *)filesizeChar;
 
-		printf("filesize %d\n", filesize);
-
-	  file = fopen(filename, "wb");
+	  	file = fopen(filename, "wb");
 		if (file == NULL)
 			printf("Error opening file!\n");
 
-		printf("pressupostamente acabei de ler um start\n");
 		frwrite(fd, RR, r);
 	}
 
 	// Control End
 	else if (buf[4] == CONTROL_PACKET_END) {
-		printf("pressupostamente estou a ler um end\n");
+		printf("Reading Control Packet End.\n");
 		fclose(file);
 		frwrite(fd, RR, r);
 	}
 
 
 	  // Data Packet
-  else if (buf[4] == 0x01) {
-		//printf("pressupostamente estou a ler dados mesmo\n");
+  	else if (buf[4] == 0x01) {
 		int i;
-		//printf("tamanho %d  n %d\n", n-10, n);
-
 		unsigned char * buftmp = (unsigned char*)malloc(n-5);
 
 		memcpy(buftmp, buf + 4, n-5);
 
-		/*for (i = 0; i < n; i++) {
-			printf("buf [%d] = %x", i, buf[i]);
-		}*/
-
 		int sizeOfBuftmp = n-5;
 
-    buftmp = destuff(buftmp,&sizeOfBuftmp);
-
-		if (hasErrors(buftmp,sizeOfBuftmp)) {
-		      frwrite(fd, REJ, r);
-		      return;
-		}
+    	buftmp = destuff(buftmp,&sizeOfBuftmp);
 
 		int numPackets = buftmp[2]*256 + buftmp[3];
-
-		//printf("recebido %d  n %d numpackets %d\n", receivedData, n,numPackets);
-
-		/*for (i = 0 ; i < n-6; i++) {
-			printf("buf [%d] = %x ",i, buftmp[i]);
-		}*/
 
 		fseek(file, receivedData, SEEK_SET);
 
 		for(i = 0; i < numPackets ;i++){
 			fwrite(&buftmp[4+i], sizeof(unsigned char), 1, file);
-		//printf("buf [%d] = %x ",i, buftmp[i]);
 		}
 
 		receivedData += (numPackets);
-		//printf("escrevi no ficheiro %d packets\n", receivedData);
 		free(buftmp);
 
 		frwrite(fd, RR, r);
@@ -251,25 +233,28 @@ void frwrite(int fd, char state, char NR) {
 
 		// Isn't information frame
 	if (state == UA) {
-	    printf("mandei um UA para o fd %d\n", fd);
+	    printf("Sent UA.\n");
     	toWrite[0] = FLAG; toWrite[1] = 0x03; toWrite[2] = state; toWrite[3] = state^0x03; toWrite[4] = FLAG;
 	}
 	else if (state == DISC) {
-  	printf("mandei um DISC para o fd %d\n", fd);
+  		printf("Sent DISC.\n");
 		toWrite[0] = FLAG; toWrite[1] = 0x01; toWrite[2] = state; toWrite[3] = state^0x01; toWrite[4] = FLAG;
 	}
-  else if (state == RR || state == REJ) {
-		printf("mandei um %x para o fd %d\n", state, fd);
-    toWrite[0] = FLAG; toWrite[1] = 0x01; toWrite[2] = state^NR; toWrite[3] = state^0x01; toWrite[4] = FLAG;
-  }
-
-	printf("buf[2] %x \n", toWrite[2]);
+  	else if (state == RR) {
+		printf("Sent RR.\n");
+    	toWrite[0] = FLAG; toWrite[1] = 0x01; toWrite[2] = state^NR; toWrite[3] = state^0x01; toWrite[4] = FLAG;
+  	}
+	else if (state == REJ) {
+		printf("Sent REJ.\n");
+    	toWrite[0] = FLAG; toWrite[1] = 0x01; toWrite[2] = state^NR; toWrite[3] = state^0x01; toWrite[4] = FLAG;
+  	}
 
 	write(fd, toWrite, 5);
 }
 
 int llopen(int fd) {
   int res;
+  printf("Entered llopen.\n");
 
   while (STOP==FALSE) {
 	unsigned char* buf = (unsigned char*) malloc(MAX_SIZE);
@@ -284,30 +269,29 @@ int llopen(int fd) {
 }
 
 int llread(int fd) {
-  int res;
+  	int res;
+	printf("Entered llread.\n");
+  	while (STOP==FALSE) {
+    	unsigned char* buf = (unsigned char*) malloc(MAX_SIZE);
+    	frread(fd,buf,MAX_SIZE);
+		free(buf);
+  	}
 
-  while (STOP==FALSE) {
-    unsigned char* buf = (unsigned char*) malloc(MAX_SIZE);
-    frread(fd,buf,MAX_SIZE);
-	free(buf);
-  }
-
-  STOP = FALSE;
-  return 0;
+  	STOP = FALSE;
+  	return 0;
 }
 
 int llclose(int fd) {
-  int res;
-  printf("entrei no llclose\n");
+  	int res;
+  	printf("Entered llclose.\n");
 	frwrite(fd, DISC, 0x00);
 
-  while (STOP==FALSE) {
+  	while (STOP==FALSE) {
 		unsigned char* buf = (unsigned char*) malloc(MAX_SIZE);
-		printf("estou a ler\n");
-    frread(fd,buf,MAX_SIZE);
+    	frread(fd,buf,MAX_SIZE);
 		free(buf);
-  }
-  return 0;
+  	}
+  	return 0;
 }
 
 unsigned char* destuff(unsigned char * buf, int * size) {
@@ -316,17 +300,12 @@ unsigned char* destuff(unsigned char * buf, int * size) {
 	int arraySize = sizetmp;
 	unsigned char * buf2 = (unsigned char *)malloc(sizetmp);
 	for (i = 0; i < sizetmp; i++, buf2Index++) {
-		if(buf[i] == 0x7d) {
-			printf("potencialmente destuff, seguinte é %x \n", buf[i+1]);
-		}
-    if (buf[i] == 0x7d && buf[i+1] == 0x5e) {
-			printf("entrei no destuff\n");
+	if (buf[i] == 0x7d && buf[i+1] == 0x5e) {
 			buf2[buf2Index] = 0x7e;
 			i++;
 			arraySize--;
 		}
     else if (buf[i] == 0x7d && buf[i+1] == 0x5d) {
-			printf("entrei no destuff2\n");
 			buf2[buf2Index] = 0x7d;
 			arraySize--;
 			i++;
@@ -334,8 +313,8 @@ unsigned char* destuff(unsigned char * buf, int * size) {
 		else{
 			buf2[buf2Index] = buf[i];
 		}
-  }
-	*size = arraySize;
+  	}
+  	*size = arraySize;
 	buf2 = realloc(buf2,arraySize);
 	return buf2;
 }
