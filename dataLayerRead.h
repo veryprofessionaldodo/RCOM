@@ -44,6 +44,6 @@ int llread(int fd);
 
 int llclose(int fd);
 
-int hasErrors(unsigned char * buf);
+int hasErrors(unsigned char * buf, int size);
 
-unsigned char* destuff(unsigned char * buf, int size);
+unsigned char* destuff(unsigned char * buf, int * size);
