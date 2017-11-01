@@ -14,7 +14,7 @@
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
 #define TRUE 1
-#define MAX_SIZE 128
+#define MAX_SIZE 2048
 #define FLAG 0x7e
 #define SET 0x03
 #define DISC 0x0B

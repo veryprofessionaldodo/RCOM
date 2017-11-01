@@ -7,6 +7,10 @@ volatile int STOP=FALSE;
 FILE* file;
 unsigned int filesize;
 unsigned int receivedData = 0;
+unsigned char previousSend = 0xFF; // Different than every possibility
+unsigned char previousRequest = NR1; // Different than every possibility
+
+unsigned char * previousReceivedFrame;
 
 int frread(int fd, unsigned char * buf, int maxlen) {
 	int n=0;
@@ -82,9 +86,9 @@ int hasErrors(unsigned char * buf, int size) {
 					}
 					if (BCC2 != buf[size-2]){
 						int z;
-						for (z = 0; z < size; z++)
-							printf("buf[%d] %x\n", z, buf[z]);
-							exit(0);
+						//for (z = 0; z < size; z++)
+							//printf("buf[%d] %x\n", z, buf[z]);
+							//exit(0);
 						printf("ERROR ON Information Frame!\n");
 						return TRUE;
 					}
@@ -97,19 +101,13 @@ int hasErrors(unsigned char * buf, int size) {
 }
 
 int processframe(int fd, unsigned char* buf, int n) {
-  char r = 0x00;
-
-  if (buf[2] == NS0)
-    r = NR1;
-  else
-    r = NR0;
 
 
-	if (n == 5) {
-	  if (hasErrors(buf,5)) {
-	      frwrite(fd, REJ, r);
+		if (n == 5) {
+	  	if (hasErrors(buf,5)) {
+	      frwrite(fd, REJ, 0x00);
 	      return -1;
-	  }
+	  	}
 		// Check if SET
 		if (buf[0] == FLAG && buf[1] == 0x03 && buf[2] == SET
 			&& buf[3] == SET^0x03 && buf[4] == FLAG) {
@@ -142,21 +140,32 @@ int processframe(int fd, unsigned char* buf, int n) {
 }
 
 void processInformationFrame(int fd, unsigned char* buf, int n) {
-	char r;
-  if (buf[2] == NS0)
-    r = NR1;
-  else
-    r = NR0;
 
 	int i = n;
 
 	buf = destuff(buf, &i);
-	printf("SIZE %d \n", i);
 
-   if (hasErrors(buf,i)) {
-	      frwrite(fd, REJ, r);
-	      return;
-   }
+  if (hasErrors(buf,i)) {
+      frwrite(fd, REJ, previousRequest);
+      return;
+ }
+
+	char request;
+
+  if (buf[2] == NS0)
+    request = NR1;
+  else
+    request = NR0;
+
+	if (previousSend == buf[2]) {
+		printf("Duplicate, not writing to file.\n");
+		frwrite(fd, RR, previousRequest);
+		return;
+	}
+	else {
+		previousSend = buf[2];
+		previousRequest = request;
+	}
 
 	// Control Start
 	if (buf[4] == CONTROL_PACKET_START) { // We chose the first T to be filename, and the second to be size
@@ -187,14 +196,14 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 		if (file == NULL)
 			printf("Error opening file!\n");
 
-		frwrite(fd, RR, r);
+		frwrite(fd, RR, request);
 	}
 
 	// Control End
 	else if (buf[4] == CONTROL_PACKET_END) {
 		printf("Reading Control Packet End.\n");
 		fclose(file);
-		frwrite(fd, RR, r);
+		frwrite(fd, RR, request);
 	}
 
   	// Data Packet
@@ -221,11 +230,11 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 		receivedData += (numPackets);
 		free(buftmp);
 
-		frwrite(fd, RR, r);
+		frwrite(fd, RR, request);
   	}
 
 	else { // Not a valid packet
-		frwrite(fd, REJ, r);
+		frwrite(fd, REJ, request);
 	}
 }
 
