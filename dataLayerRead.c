@@ -40,9 +40,9 @@ int frread(int fd, unsigned char * buf, int maxlen) {
 
 int hasErrors(unsigned char * buf, int size) {
 	int z;
-	for (z = 40; z < size; z++) {
+	/*for (z = 40; z < size; z++) {
 		printf(" packet[%d] %x ", z, buf[z]);
-	}
+	}*/
 
   if (size == 5) {
 		if (buf[2] == SET || buf[2] == DISC) {
@@ -80,7 +80,6 @@ int hasErrors(unsigned char * buf, int size) {
 						BCC2 = (BCC2^buf[x]);
 						//printf(" %x ")
 					}
-					printf("My bcc2 is %x, theirs is %x and size is %d\n", BCC2, buf[size-2], size);
 					if (BCC2 != buf[size-2]){
 						int z;
 						for (z = 0; z < size; z++)
@@ -151,9 +150,8 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 
 	int i = n;
 
-	printf("i antes %d \n", i);
 	buf = destuff(buf, &i);
-	printf("i depois %d \n", i);
+	printf("SIZE %d \n", i);
 
    if (hasErrors(buf,i)) {
 	      frwrite(fd, REJ, r);
@@ -167,17 +165,17 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 
     	int nameSize = buf[6];
 
-		filename = (unsigned char *) malloc(nameSize * sizeof(unsigned char*));
+			filename = (unsigned char *) malloc(nameSize * sizeof(unsigned char*));
 
-		int x;
-		for (x = 0; x < nameSize; x++) {
-			filename[x] = buf[x+7];
-		}
+			int x;
+			for (x = 0; x < nameSize; x++) {
+				filename[x] = buf[x+7];
+			}
 
 	  	int nextPos = nameSize * sizeof(char);
-		unsigned int fileInformationSize = (unsigned int) buf[nextPos+1];
+			unsigned int fileInformationSize = (unsigned int) buf[nextPos+1];
 
-		unsigned char *filesizeChar = (unsigned char *) malloc(fileInformationSize * sizeof(unsigned char*));
+			unsigned char *filesizeChar = (unsigned char *) malloc(fileInformationSize * sizeof(unsigned char*));
 
 		for (x = 0; x < 4; x++) {
 			filesizeChar[x] = buf[x+nextPos+9];
@@ -208,9 +206,9 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 
 		int sizeOfBuftmp = n-5;
 
-		printf("sizeofbuftmp antes %d\n", sizeOfBuftmp);
+		/*printf("sizeofbuftmp antes %d\n", sizeOfBuftmp);
     	buftmp = destuff(buftmp,&sizeOfBuftmp);
-		printf("sizeofbuftmp depois %d\n", sizeOfBuftmp);
+		printf("sizeofbuftmp depois %d\n", sizeOfBuftmp);*/
 
 		int numPackets = buftmp[2]*256 + buftmp[3];
 
@@ -260,9 +258,9 @@ int llopen(int fd) {
   printf("Entered llopen.\n");
 
   while (STOP==FALSE) {
-	unsigned char* buf = (unsigned char*) malloc(MAX_SIZE);
+		unsigned char* buf = (unsigned char*) malloc(MAX_SIZE);
     frread(fd,buf,MAX_SIZE);
-	free(buf);
+		free(buf);
   }
 
   frwrite(fd, UA, 0x00);
@@ -275,9 +273,9 @@ int llread(int fd) {
   	int res;
 	printf("Entered llread.\n");
   	while (STOP==FALSE) {
-    	unsigned char* buf = (unsigned char*) malloc(MAX_SIZE);
+    	unsigned char* buf = (unsigned char*) malloc(MAX_SIZE + 7);
     	frread(fd,buf,MAX_SIZE);
-		free(buf);
+			free(buf);
   	}
 
   	STOP = FALSE;
@@ -290,9 +288,9 @@ int llclose(int fd) {
 	frwrite(fd, DISC, 0x00);
 
   	while (STOP==FALSE) {
-		unsigned char* buf = (unsigned char*) malloc(MAX_SIZE);
+			unsigned char* buf = (unsigned char*) malloc(MAX_SIZE + 7);
     	frread(fd,buf,MAX_SIZE);
-		free(buf);
+			free(buf);
   	}
   	return 0;
 }
