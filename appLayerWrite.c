@@ -1,7 +1,7 @@
 /*Non-Canonical Input Processing*/
 #include "dataLayerWrite.h"
 
-#define BAUDRATE B38400
+#define BAUDRATE B38400 
 #define MODEMDEVICE "/dev/ttyS1"
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
@@ -176,7 +176,7 @@ int main(int argc, char** argv){
 					unsigned char * CTRL_DATA =buildDataPacket(buftmp,sizebuf);      //create data packet
 
           free(buftmp);
- 
+
           if(llwrite(fd,CTRL_DATA,sizebuf+4) < 0)  //send control data packet
             printf("ERROR in llwrite data! \n");
 

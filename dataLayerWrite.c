@@ -167,6 +167,7 @@ int llwrite(int fd, unsigned char* buf, int size){
 
     packet[size + 4] = FLAG;
 
+    free(buf);
 
     //waiting for response;
 	   STOP = FALSE;
@@ -206,6 +207,7 @@ unsigned char * stuff(unsigned char *buf, unsigned int* size){
 
   int buf2Index = 0;
   int sizetmp = *size;
+  int arraySize = *size;
   int z;
 
   unsigned char * buf2 = (unsigned char *) malloc(sizetmp);
@@ -215,15 +217,17 @@ unsigned char * stuff(unsigned char *buf, unsigned int* size){
   for (i = 0; i < sizetmp; i++, buf2Index++) {
 
     if (buf[i] == 0x7e) { // Needs to be stuffed, it's an escape flag
-      buf2 = realloc(buf2, sizetmp + 1);
-      printf(" stuff1 ");
+      arraySize++;
+      //printf(" stuff1 sizetmp %d ", sizetmp);
+      buf2 = realloc(buf2, arraySize);
       buf2[buf2Index] = 0x7d;
       buf2[buf2Index+1] = 0x5e;
       buf2Index++;
     }
     else if (buf[i] == 0x7d) { // Needs to be stuffed, it's an escape flag
-      printf(" stuff1 ");
-      buf2 = realloc(buf2, sizetmp + 1);
+      arraySize++;
+      //printf(" stuff2 sizetmp %d ", sizetmp);
+      buf2 = realloc(buf2, arraySize);
       buf2[buf2Index] = 0x7d;
       buf2[buf2Index+1] = 0x5d;
       buf2Index++;
@@ -234,9 +238,9 @@ unsigned char * stuff(unsigned char *buf, unsigned int* size){
 
   }
 
-  for (z = 0; z < buf2Index; z++) {
+  /*for (z = 0; z < buf2Index; z++) {
     printf("pos[%d] %x\n", z, buf2[z]);
-  }
-  *size = buf2Index;
+  }*/
+  *size = arraySize;
   return buf2;
 }

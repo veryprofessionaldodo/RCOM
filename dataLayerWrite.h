@@ -22,7 +22,7 @@
 #define UA 0x07
 #define DISC 0x0b
 #define ESC 0x5e
-#define MAX_SIZE 1024
+#define MAX_SIZE 64
 #define RR 0x05
 #define REJ 0x01
 
