@@ -22,9 +22,13 @@
 #define UA 0x07
 #define DISC 0x0b
 #define ESC 0x5e
-#define MAX_SIZE 64
+#define MAX_SIZE 1024
 #define RR 0x05
 #define REJ 0x01
+#define NS0 0x40
+#define NS1 0x00
+#define NR0 0x80
+#define NR1 0x00
 
 // States
 #define CONNECTING 0

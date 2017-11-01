@@ -7,27 +7,26 @@ volatile int STOP2=FALSE;
 int current_state, previous_state;
 int counter = 1;
 int serialPortFD;
-int CN = 0x00;
 
-unsigned char* previousFrameSent;
-unsigned int previousFrameSize;
+unsigned char previousSend = NS0;
+unsigned char previousRequest = NR1;
+unsigned char* previousPacket;
+unsigned int previousSize;
 
 void noInformationFrameWrite(int fd, char state, int n) {
     unsigned char toWrite[5];
 
-        // Isn't information frame
-        if( state == SET || state == DISC){
-            toWrite[0] = FLAG; toWrite[1] = 0x03; toWrite[2] = state; toWrite[3] = state^0x03; toWrite[4] = FLAG;
-            printf("Sent SET or DISC.\n");
-        }
-        else if(state == UA ){
-            toWrite[0] = FLAG; toWrite[1] = 0x01; toWrite[2] = state; toWrite[3] = state^0x01; toWrite[4] = FLAG;
-            printf("Sent UA.\n");
-        }
+    // Isn't information frame
+    if( state == SET || state == DISC){
+        toWrite[0] = FLAG; toWrite[1] = 0x03; toWrite[2] = state; toWrite[3] = state^0x03; toWrite[4] = FLAG;
+        printf("Sent SET or DISC.\n");
+    }
+    else if(state == UA ){
+        toWrite[0] = FLAG; toWrite[1] = 0x01; toWrite[2] = state; toWrite[3] = state^0x01; toWrite[4] = FLAG;
+        printf("Sent UA.\n");
+    }
 
-        previousFrameSent = toWrite;
-        previousFrameSize = 5;
-	      write(fd, toWrite, sizeof(toWrite));
+    write(fd, toWrite, sizeof(toWrite));
   }
 
 void processframe(int fd,unsigned  char* buf, unsigned int n) {
@@ -44,11 +43,16 @@ void processframe(int fd,unsigned  char* buf, unsigned int n) {
           noInformationFrameWrite(fd,UA,5);
 					STOP2 = TRUE;
     }
-    else if(buf[2] == RR || buf[2] == (RR^0x80)){
+    else if(buf[2] == RR || buf[2] == (RR^NR0)){
           printf("Received RR.\n");
-		    	STOP = TRUE;
+          if (previousRequest == buf[2])
+            STOP = FALSE;
+          else {
+            previousRequest = buf[2];
+        	  STOP = TRUE;
+          }
     }
-		else if(buf[2] == REJ || buf[2] == (REJ^0x80)){
+		else if(buf[2] == REJ || buf[2] == (REJ^NR0)){
           printf("Received REJ, resending.\n");
           STOP = FALSE;
     }
@@ -129,6 +133,7 @@ int llclose(int fd){
 		 c = frread(fd,buf,5);
      free(buf);
   }
+//   close(serialPortFD);
 	 counter = 1;
 	 return c;
 }
@@ -143,7 +148,6 @@ int llwrite(int fd, unsigned char* buf, int size){
 	     BCC2 = (BCC2^buf[i]);
     }
     buf = realloc(buf, size + 1);
-    printf("BCC2 %x\n", BCC2);
     buf[size] = BCC2;
     size++;
     buf = stuff(buf,&size);
@@ -155,10 +159,15 @@ int llwrite(int fd, unsigned char* buf, int size){
 
     int x;
 
+    if (previousSend == NS0)
+      previousSend = NS1;
+    else
+      previousSend = NS0;
+
     unsigned char * packet = (unsigned char *) malloc(size+6);
     packet[0] = FLAG;
     packet[1] = 0x03;
-    packet[2] = CN;
+    packet[2] = previousSend;
     packet[3] = packet[1]^packet[2];
 
     for(i = 0; i < size;i++){
@@ -177,9 +186,8 @@ int llwrite(int fd, unsigned char* buf, int size){
      while(counter < 3 && STOP == FALSE){
        unsigned char * buf2 = (unsigned char *)malloc(255);
        alarm(3);
-       previousFrameSent = packet;
-       previousFrameSize = size + 5;
        int z;
+       printf(" Escrevendo com CN %x ", previousSend );
        /*for (z = 0; z < size+5; z++) {
          printf(" packet[%d] %x\n ", z, packet[z]);
        }*/
@@ -193,12 +201,7 @@ int llwrite(int fd, unsigned char* buf, int size){
 	  }
 	 counter = 1;
 
-	 if(CN = 0x00)
-	   CN = 0x40;
-		 else
-		 CN = 0x00;
-
-     free(packet);
+	 free(packet);
 
 	 return c;
 }
