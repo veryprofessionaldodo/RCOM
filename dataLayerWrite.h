@@ -29,6 +29,8 @@
 #define NS1 0x00
 #define NR0 0x80
 #define NR1 0x00
+#define ADDRESS1 0x01
+#define ADDRESS2 0x03
 
 void processframe(int fd,unsigned  char* buf, unsigned int n);
 
