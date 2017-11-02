@@ -9,7 +9,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#define BAUDRATE B38400
+#define BAUDRATE B115200
+#define PROBABILITY_OF_ERROR 20
 #define MODEMDEVICE "/dev/ttyS1"
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
@@ -25,6 +26,8 @@
 #define NS1 0x00
 #define NR0 0x80
 #define NR1 0x00
+#define ADDRESS1 0x01
+#define ADDRESS2 0x03
 #define CONTROL_PACKET_START 0x02
 #define CONTROL_PACKET_END 0x03
 

@@ -8,7 +8,7 @@ FILE* file;
 unsigned int filesize;
 unsigned int receivedData = 0;
 unsigned char previousSend = 0xFF; // Different than every possibility
-unsigned char previousRequest = NR1; // Different than every possibility
+unsigned char previousRequest = NR1;
 
 unsigned char * previousReceivedFrame;
 
@@ -45,6 +45,12 @@ int frread(int fd, unsigned char * buf, int maxlen) {
 //function made to check if there are any errors in the frames
 int hasErrors(unsigned char * buf, int size) {
 
+#ifdef TEST
+  int r = rand(100);
+  if (r < PROBABILITY_OF_ERROR)
+  	return TRUE;
+#endif
+
   if (size == 5) {
 		if (buf[2] == SET || buf[2] == DISC) {
 				if ((buf[2]^0x03) != buf[3]) { //checks if there is a error in set or disc frame
@@ -67,7 +73,7 @@ int hasErrors(unsigned char * buf, int size) {
 
 	}
 
-	else {//checks if there is a error in Information frame
+	else { //checks if there is a error in Information frame
 			unsigned char BCC2 = 0x00;
 
 			if ((buf[2]^0x03) != buf[3]) {
@@ -99,20 +105,20 @@ int processframe(int fd, unsigned char* buf, int n) {
 	      return -1;
 	  	}
 		// Check if SET
-		if (buf[0] == FLAG && buf[1] == 0x03 && buf[2] == SET
-			&& buf[3] == SET^0x03 && buf[4] == FLAG) {
+		if (buf[0] == FLAG && buf[1] == ADDRESS2 && buf[2] == SET
+			&& buf[3] == SET^ADDRESS2 && buf[4] == FLAG) {
 	        printf("Received SET.\n");
 	        STOP = TRUE;//closes llopen
 			return 0;
 		}// Check if DISC
-		else if (buf[0] == FLAG && buf[1] == 0x03 && buf[2] == DISC
-			&& buf[3] == DISC^0x03 && buf[4] == FLAG) {
+		else if (buf[0] == FLAG && buf[1] == ADDRESS2 && buf[2] == DISC
+			&& buf[3] == DISC^ADDRESS2 && buf[4] == FLAG) {
            printf("Received DISC.\n");
            STOP = TRUE; //closes llread
            return 0;
 		}// Check if UA
-		else if (buf[0] == FLAG && buf[1] == 0x01 && buf[2] == UA
-			&& buf[3] == DISC^0x01 && buf[4] == FLAG) {
+		else if (buf[0] == FLAG && buf[1] == ADDRESS1 && buf[2] == UA
+			&& buf[3] == DISC^ADDRESS1 && buf[4] == FLAG) {
 			 printf("Received UA.\n");
 			 STOP = TRUE; //closes llclose
 			 return 0;
@@ -140,16 +146,17 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 
 	char request;
 
-  if (buf[2] == NS0)
-    request = NR1;
-  else
-    request = NR0;
+  	if (buf[2] == NS0)
+    	request = NR1;
+  	else
+    	request = NR0;
 
 	if (previousSend == buf[2]) { //checks if its a duplicate frame
 		printf("Duplicate, not writing to file.\n");
 		frwrite(fd, RR, previousRequest);
 		return;
 	}
+
 	else {
 		previousSend = buf[2];
 		previousRequest = request;
@@ -225,19 +232,19 @@ void frwrite(int fd, char state, char NR) {
 		// Isn't information frame
 	if (state == UA) {
 	    printf("Sent UA.\n");
-    	toWrite[0] = FLAG; toWrite[1] = 0x03; toWrite[2] = state; toWrite[3] = state^0x03; toWrite[4] = FLAG;
+    	toWrite[0] = FLAG; toWrite[1] = ADDRESS2; toWrite[2] = state; toWrite[3] = state^ADDRESS2; toWrite[4] = FLAG;
 	}
 	else if (state == DISC) {
   		printf("Sent DISC.\n");
-		toWrite[0] = FLAG; toWrite[1] = 0x01; toWrite[2] = state; toWrite[3] = state^0x01; toWrite[4] = FLAG;
+		toWrite[0] = FLAG; toWrite[1] = ADDRESS1; toWrite[2] = state; toWrite[3] = state^ADDRESS1; toWrite[4] = FLAG;
 	}
   	else if (state == RR) {
 		printf("Sent RR.\n");
-    	toWrite[0] = FLAG; toWrite[1] = 0x01; toWrite[2] = state^NR; toWrite[3] = state^0x01; toWrite[4] = FLAG;
+    	toWrite[0] = FLAG; toWrite[1] = ADDRESS1; toWrite[2] = state^NR; toWrite[3] = state^ADDRESS1; toWrite[4] = FLAG;
   	}
 	else if (state == REJ) {
 		printf("Sent REJ.\n");
-    	toWrite[0] = FLAG; toWrite[1] = 0x01; toWrite[2] = state^NR; toWrite[3] = state^0x01; toWrite[4] = FLAG;
+    	toWrite[0] = FLAG; toWrite[1] = ADDRESS1; toWrite[2] = state^NR; toWrite[3] = state^ADDRESS1; toWrite[4] = FLAG;
   	}
 
 	write(fd, toWrite, 5);

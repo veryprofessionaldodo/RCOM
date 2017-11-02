@@ -3,6 +3,8 @@
 
 int main(int argc, char** argv)
 {
+
+
   int fd,c;
   struct termios oldtio,newtio;
   char buf[255];
@@ -32,6 +34,7 @@ int main(int argc, char** argv)
   newtio.c_cc[VTIME]    = 30;   /* inter-character timer unused */
   newtio.c_cc[VMIN]     = 0;   /* blocking read until 5 chars received */
 
+  srand(time(NULL));   // should only be called once
 /*
   VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
   leitura do(s) próximo(s) caracter(es)
