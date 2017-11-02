@@ -14,7 +14,7 @@ int transmittedData = 0;
 unsigned char* buildControlPacket(char state,char * filename,int sizeFile){
   unsigned char filesize[4];
   int sizetmp = sizeFile;
-  // cast size form int to char array
+  // cast size from int to char array
   filesize[0] = (sizetmp >> 24) & 0xFF;
   filesize[1] = (sizetmp >> 16) & 0xFF;
   filesize[2] = (sizetmp >> 8) & 0xFF;
