@@ -4,9 +4,7 @@
 
 volatile int STOP=FALSE;
 volatile int STOP2=FALSE;
-int current_state, previous_state;
 int counter = 1;
-int serialPortFD;
 
 unsigned char previousSend = NS0;
 unsigned char previousRequest = NR1;
@@ -30,19 +28,18 @@ void noInformationFrameWrite(int fd, char state, int n) {
   }
 
 void processframe(int fd,unsigned  char* buf, unsigned int n) {
-	  //alarm(0);
     // Check if UA
     if (buf[0] == FLAG && buf[1] == 0x03 && buf[2] == UA
           && buf[3] == (UA^0x03) && buf[4] == FLAG) {
           printf("Received UA.\n");
 	 			  STOP = TRUE;
-    }
+    } //Check if DISC
     else if (buf[0] == FLAG && buf[1] == 0x01 && buf[2] == DISC
       && buf[3] == (DISC^0x01) && buf[4] == FLAG) {
           printf("Received DISC.\n");
           noInformationFrameWrite(fd,UA,5);
 					STOP2 = TRUE;
-    }
+    }//Check if RR
     else if(buf[2] == RR || buf[2] == (RR^NR0)){
           printf("Received RR.\n");
           if (previousRequest == buf[2])
@@ -51,7 +48,7 @@ void processframe(int fd,unsigned  char* buf, unsigned int n) {
             previousRequest = buf[2];
         	  STOP = TRUE;
           }
-    }
+    }//Check if REJ
 		else if(buf[2] == REJ || buf[2] == (REJ^NR0)){
           printf("Received REJ, resending.\n");
           STOP = FALSE;
@@ -104,10 +101,10 @@ void incCounter(){
 int llopen(int fd){
 	printf("Entered llopen.\n");
 	int c = -1;
-	serialPortFD = fd;
+
+ //initialize alarm
 	(void) signal(SIGALRM, incCounter);
 	alarm(3);
-	previous_state = CONNECTING;
 
   while(counter < 3 && STOP == FALSE){
     unsigned char * buf = (unsigned char *)malloc(255);
@@ -123,17 +120,14 @@ int llopen(int fd){
 
 int llclose(int fd){
 	printf("Entered llclose. \n" );
-	STOP = FALSE;
 	int c = -1;
 	alarm(3);
-	previous_state = CONNECTING;
 	while(counter < 3 && STOP2==FALSE){
     unsigned char * buf = (unsigned char *)malloc(255);
 		 noInformationFrameWrite(fd,DISC, 5);
 		 c = frread(fd,buf,5);
      free(buf);
   }
-//   close(serialPortFD);
 	 counter = 1;
 	 return c;
 }
@@ -147,17 +141,11 @@ int llwrite(int fd, unsigned char* buf, int size){
     for(i = 0; i < size;i++){
 	     BCC2 = (BCC2^buf[i]);
     }
-    buf = realloc(buf, size + 1);
+
+    buf = realloc(buf, size + 1); //reallocate memory to join data packet with BCC2 to stuff
     buf[size] = BCC2;
     size++;
     buf = stuff(buf,&size);
-
-
-    /*for(i= 0; i < size; i++) {
-      printf("buf[%d] %x\n", i, buf[i]);
-    }*/
-
-    int x;
 
     if (previousSend == NS0)
       previousSend = NS1;
@@ -175,7 +163,6 @@ int llwrite(int fd, unsigned char* buf, int size){
      }
 
     packet[size + 4] = FLAG;
-
     free(buf);
 
     //waiting for response;
@@ -186,12 +173,8 @@ int llwrite(int fd, unsigned char* buf, int size){
      while(counter < 3 && STOP == FALSE){
        unsigned char * buf2 = (unsigned char *)malloc(255);
        alarm(3);
-       int z;
-       printf(" Escrevendo com CN %x ", previousSend );
-       /*for (z = 0; z < size+5; z++) {
-         printf(" packet[%d] %x\n ", z, packet[z]);
-       }*/
-       printf("\n");
+       //printf(" Escrevendo com CN %x ", previousSend );
+       //printf("\n");
 		   if(write(fd,packet,size + 5) != size + 5 ){
 		       printf("Error sending frame\n");
 		   };
@@ -200,9 +183,7 @@ int llwrite(int fd, unsigned char* buf, int size){
        free(buf2);
 	  }
 	 counter = 1;
-
 	 free(packet);
-
 	 return c;
 }
 
@@ -211,17 +192,14 @@ unsigned char * stuff(unsigned char *buf, unsigned int* size){
   int buf2Index = 0;
   int sizetmp = *size;
   int arraySize = *size;
-  int z;
 
   unsigned char * buf2 = (unsigned char *) malloc(sizetmp);
-  //buf2 = buf;
 
   int i;
   for (i = 0; i < sizetmp; i++, buf2Index++) {
 
     if (buf[i] == 0x7e) { // Needs to be stuffed, it's an escape flag
       arraySize++;
-      //printf(" stuff1 sizetmp %d ", sizetmp);
       buf2 = realloc(buf2, arraySize);
       buf2[buf2Index] = 0x7d;
       buf2[buf2Index+1] = 0x5e;
@@ -229,7 +207,6 @@ unsigned char * stuff(unsigned char *buf, unsigned int* size){
     }
     else if (buf[i] == 0x7d) { // Needs to be stuffed, it's an escape flag
       arraySize++;
-      //printf(" stuff2 sizetmp %d ", sizetmp);
       buf2 = realloc(buf2, arraySize);
       buf2[buf2Index] = 0x7d;
       buf2[buf2Index+1] = 0x5d;
@@ -241,9 +218,6 @@ unsigned char * stuff(unsigned char *buf, unsigned int* size){
 
   }
 
-  /*for (z = 0; z < buf2Index; z++) {
-    printf("pos[%d] %x\n", z, buf2[z]);
-  }*/
   *size = arraySize;
   return buf2;
 }

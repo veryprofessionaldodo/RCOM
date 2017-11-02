@@ -1,7 +1,7 @@
 /*Non-Canonical Input Processing*/
 #include "dataLayerWrite.h"
 
-#define BAUDRATE B38400 
+#define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
@@ -14,14 +14,13 @@ int transmittedData = 0;
 unsigned char* buildControlPacket(char state,char * filename,int sizeFile){
   unsigned char filesize[4];
   int sizetmp = sizeFile;
-
+  // cast size form int to char array
   filesize[0] = (sizetmp >> 24) & 0xFF;
   filesize[1] = (sizetmp >> 16) & 0xFF;
   filesize[2] = (sizetmp >> 8) & 0xFF;
   filesize[3] = sizetmp & 0xFF;
 
   int size = 5 + 4 + strlen(filename);
-
   unsigned char* packet = malloc(size);
 
   unsigned int i=0;
@@ -54,7 +53,6 @@ unsigned char* buildDataPacket(char * buf,int sizeFile){
 	int L1 = sizetmp % 256;
 
   int size = sizetmp + 4;
-
   unsigned char* packet = malloc(size);
 
   unsigned int i=0,pos=4;
@@ -129,11 +127,12 @@ int main(int argc, char** argv){
       printf("ERROR in llopen! \n");
       else{
 
+         //opens file
         file = fopen(argv[2], "rb");
-          if (file == NULL) {
+        if (file == NULL) {
           perror ("Error opening file");
-        printf("ERROR in llwrite! \n");
-         fclose (file);
+          printf("ERROR in llwrite! \n");
+          fclose (file);
         }
 
         //size of file
@@ -147,49 +146,37 @@ int main(int argc, char** argv){
           printf("ERROR in llwrite start! \n");
 
         int i = 0;
-        FILE* file2;
-        file2 = fopen("yolo2.gif", "wb");
-          if (file2 == NULL) {
-          perror ("Error opening file");
-        printf("ERROR in llwrite! \n");
-        }
 				unsigned char* buf = (unsigned char*) malloc (st.st_size);
 
 				fread(buf,sizeof(unsigned char),st.st_size,file);    //read from file
 
         int sizebuf;
         while(transmittedData < st.st_size){
-        	     if ((st.st_size - transmittedData) > MAX_SIZE)
-                  sizebuf = MAX_SIZE;
-					      else
-                  sizebuf = st.st_size - transmittedData;
+          //calculates the size of the sizebuf
+        	if ((st.st_size - transmittedData) > MAX_SIZE)
+              sizebuf = MAX_SIZE;
+				  else
+              sizebuf = st.st_size - transmittedData;
 
+          unsigned char* buftmp = (unsigned char*)malloc (sizebuf); //allocates memory to the buffer
 
-          unsigned char* buftmp = (unsigned char*)malloc (sizebuf);
+          memcpy(buftmp,buf + transmittedData, sizebuf); // copies part of the file to buftmp
 
-          memcpy(buftmp,buf + transmittedData, sizebuf);
-
-          fseek(file2,transmittedData,SEEK_SET);
-
-          fwrite(buftmp, sizeof(unsigned char), sizebuf, file2);
-
-					unsigned char * CTRL_DATA =buildDataPacket(buftmp,sizebuf);      //create data packet
+					unsigned char * CTRL_DATA =buildDataPacket(buftmp,sizebuf);//creates data packet
 
           free(buftmp);
 
           if(llwrite(fd,CTRL_DATA,sizebuf+4) < 0)  //send control data packet
             printf("ERROR in llwrite data! \n");
 
-
-          if (transmittedData + sizebuf > st.st_size)  {
+          //adds to the variable transmittedData what was sent
+          if (transmittedData + sizebuf > st.st_size)
               transmittedData += st.st_size;
-            }
-        else
+          else
              transmittedData += sizebuf;
 
         printf("Has transmitted %d out of %d", transmittedData, st.st_size);
         }
-        fclose (file2);
         free(buf);
 
         printf("Finished writing.\n");
@@ -199,9 +186,9 @@ int main(int argc, char** argv){
         if(llwrite(fd,CTRL_END,size) < 0)  //send control end packet
           printf("ERROR in llwrite end! \n");
         else{
-        if(llclose(fd) < 0)
-          printf("ERROR in llclose! \n");
-        else
+          if(llclose(fd) < 0)
+            printf("ERROR in llclose! \n");
+          else
           return 0;
         }
       }
