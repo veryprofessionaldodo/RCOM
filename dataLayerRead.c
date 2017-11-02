@@ -17,7 +17,7 @@ int frread(int fd, unsigned char * buf, int maxlen) {
 	int ch;
 
 	while(1) {
- 		if((ch= read(fd, buf + n, 1)) <= 0) {
+ 		if((ch= read(fd, buf + n, 1)) <= 0) { //reads form serial port
 			return ch; // ERROR
 		}
 
@@ -42,16 +42,12 @@ int frread(int fd, unsigned char * buf, int maxlen) {
 	return 0;
 }
 
+//function made to check if there are any errors in the frames
 int hasErrors(unsigned char * buf, int size) {
-	int z;
-	/*for (z = 40; z < size; z++) {
-		printf(" packet[%d] %x ", z, buf[z]);
-	}*/
 
   if (size == 5) {
 		if (buf[2] == SET || buf[2] == DISC) {
-				if ((buf[2]^0x03) != buf[3]) {
-						//  buf[2] == SET	&& buf[3] == SET^0x03
+				if ((buf[2]^0x03) != buf[3]) { //checks if there is a error in set or disc frame
 					printf("ERROR ON SET or DISC!\n");
 					return TRUE;
 				}
@@ -60,7 +56,7 @@ int hasErrors(unsigned char * buf, int size) {
 		}
 		else {
 			if (buf[2] == UA) {
-				if ((buf[2]^0x01) != buf[3]) {
+				if ((buf[2]^0x01) != buf[3]) {//checks if there is a error in ua frame
 					printf("ERROR ON UA!\n");
 					return TRUE;
 				}
@@ -71,7 +67,7 @@ int hasErrors(unsigned char * buf, int size) {
 
 	}
 
-	else {
+	else {//checks if there is a error in Information frame
 			unsigned char BCC2 = 0x00;
 
 			if ((buf[2]^0x03) != buf[3]) {
@@ -82,13 +78,8 @@ int hasErrors(unsigned char * buf, int size) {
 					int x;
 					for (x = 4; x < size-2;x++) {
 						BCC2 = (BCC2^buf[x]);
-						//printf(" %x ")
 					}
 					if (BCC2 != buf[size-2]){
-						int z;
-						//for (z = 0; z < size; z++)
-							//printf("buf[%d] %x\n", z, buf[z]);
-							//exit(0);
 						printf("ERROR ON Information Frame!\n");
 						return TRUE;
 					}
@@ -102,9 +93,8 @@ int hasErrors(unsigned char * buf, int size) {
 
 int processframe(int fd, unsigned char* buf, int n) {
 
-
-		if (n == 5) {
-	  	if (hasErrors(buf,5)) {
+	if (n == 5) {
+	  	if (hasErrors(buf,5)) { //checks if there are any errors in the frame
 	      frwrite(fd, REJ, 0x00);
 	      return -1;
 	  	}
@@ -112,39 +102,37 @@ int processframe(int fd, unsigned char* buf, int n) {
 		if (buf[0] == FLAG && buf[1] == 0x03 && buf[2] == SET
 			&& buf[3] == SET^0x03 && buf[4] == FLAG) {
 	        printf("Received SET.\n");
-	        STOP = TRUE;
+	        STOP = TRUE;//closes llopen
 			return 0;
-		}
-		// Check if DISC
+		}// Check if DISC
 		else if (buf[0] == FLAG && buf[1] == 0x03 && buf[2] == DISC
 			&& buf[3] == DISC^0x03 && buf[4] == FLAG) {
            printf("Received DISC.\n");
-           STOP = TRUE;
+           STOP = TRUE; //closes llread
            return 0;
-		}
-
-		// Check if UA
+		}// Check if UA
 		else if (buf[0] == FLAG && buf[1] == 0x01 && buf[2] == UA
 			&& buf[3] == DISC^0x01 && buf[4] == FLAG) {
 			 printf("Received UA.\n");
-			 STOP = TRUE;
+			 STOP = TRUE; //closes llclose
 			 return 0;
 		}
 	}
 	else {
-		processInformationFrame(fd, buf, n);
+		processInformationFrame(fd, buf, n); //processes information frames
 	}
 
 	return 0;
 
 }
 
+//function designed to process information frames
 void processInformationFrame(int fd, unsigned char* buf, int n) {
 
 	int i = n;
-
 	buf = destuff(buf, &i);
 
+//checks if there are any errors in information frame
   if (hasErrors(buf,i)) {
       frwrite(fd, REJ, previousRequest);
       return;
@@ -157,7 +145,7 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
   else
     request = NR0;
 
-	if (previousSend == buf[2]) {
+	if (previousSend == buf[2]) { //checks if its a duplicate frame
 		printf("Duplicate, not writing to file.\n");
 		frwrite(fd, RR, previousRequest);
 		return;
@@ -170,21 +158,19 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 	// Control Start
 	if (buf[4] == CONTROL_PACKET_START) { // We chose the first T to be filename, and the second to be size
 		printf("Reading Control Packet Start.\n");
-    	unsigned char* filename;
 
+		unsigned char* filename;
     	int nameSize = buf[6];
+		filename = (unsigned char *) malloc(nameSize * sizeof(unsigned char*));
 
-			filename = (unsigned char *) malloc(nameSize * sizeof(unsigned char*));
-
-			int x;
-			for (x = 0; x < nameSize; x++) {
-				filename[x] = buf[x+7];
-			}
+		int x;
+		for (x = 0; x < nameSize; x++) {
+			filename[x] = buf[x+7];
+		}
 
 	  	int nextPos = nameSize * sizeof(char);
-			unsigned int fileInformationSize = (unsigned int) buf[nextPos+1];
-
-			unsigned char *filesizeChar = (unsigned char *) malloc(fileInformationSize * sizeof(unsigned char*));
+		unsigned int fileInformationSize = (unsigned int) buf[nextPos+1];
+		unsigned char * filesizeChar = (unsigned char *) malloc(fileInformationSize * sizeof(unsigned char*));
 
 		for (x = 0; x < 4; x++) {
 			filesizeChar[x] = buf[x+nextPos+9];
@@ -196,7 +182,7 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 		if (file == NULL)
 			printf("Error opening file!\n");
 
-		frwrite(fd, RR, request);
+		frwrite(fd, RR, request); //sends RR frame
 	}
 
 	// Control End
@@ -214,17 +200,12 @@ void processInformationFrame(int fd, unsigned char* buf, int n) {
 		memcpy(buftmp, buf + 4, n-5);
 
 		int sizeOfBuftmp = n-5;
-
-		/*printf("sizeofbuftmp antes %d\n", sizeOfBuftmp);
-    	buftmp = destuff(buftmp,&sizeOfBuftmp);
-		printf("sizeofbuftmp depois %d\n", sizeOfBuftmp);*/
-
 		int numPackets = buftmp[2]*256 + buftmp[3];
 
 		fseek(file, receivedData, SEEK_SET);
 
 		for(i = 0; i < numPackets ;i++){
-			fwrite(&buftmp[4+i], sizeof(unsigned char), 1, file);
+			fwrite(&buftmp[4+i], sizeof(unsigned char), 1, file); //writes to the file
 		}
 
 		receivedData += (numPackets);
@@ -263,28 +244,26 @@ void frwrite(int fd, char state, char NR) {
 }
 
 int llopen(int fd) {
-  int res;
   printf("Entered llopen.\n");
 
   while (STOP==FALSE) {
-		unsigned char* buf = (unsigned char*) malloc(MAX_SIZE);
+	unsigned char* buf = (unsigned char*) malloc(MAX_SIZE);
     frread(fd,buf,MAX_SIZE);
-		free(buf);
+	free(buf);
   }
 
-  frwrite(fd, UA, 0x00);
-
+  frwrite(fd, UA, 0x00); //sends UA frame
   STOP = FALSE;
   return 0;
 }
 
 int llread(int fd) {
-  	int res;
 	printf("Entered llread.\n");
+
   	while (STOP==FALSE) {
     	unsigned char* buf = (unsigned char*) malloc(MAX_SIZE + 7);
     	frread(fd,buf,MAX_SIZE);
-			free(buf);
+		free(buf);
   	}
 
   	STOP = FALSE;
@@ -292,39 +271,41 @@ int llread(int fd) {
 }
 
 int llclose(int fd) {
-  	int res;
   	printf("Entered llclose.\n");
-	frwrite(fd, DISC, 0x00);
+
+	frwrite(fd, DISC, 0x00); //sends DISC frame
 
   	while (STOP==FALSE) {
-			unsigned char* buf = (unsigned char*) malloc(MAX_SIZE + 7);
+		unsigned char* buf = (unsigned char*) malloc(MAX_SIZE + 7);
     	frread(fd,buf,MAX_SIZE);
-			free(buf);
+		free(buf);
   	}
   	return 0;
 }
 
 unsigned char* destuff(unsigned char * buf, int * size) {
-	int i, buf2Index = 0;
+  int i, buf2Index = 0;
   int sizetmp = *size;
   int arraySize = sizetmp;
-  unsigned char * buf2 = (unsigned char *)malloc(sizetmp);
+
+  unsigned char * buf2 = (unsigned char *)malloc(sizetmp); //alocates memory to the new buffer
+
   for (i = 0; i < sizetmp; i++, buf2Index++) {
-  if (buf[i] == 0x7d && buf[i+1] == 0x5e) {
+  	if (buf[i] == 0x7d && buf[i+1] == 0x5e) {  //checks if it is an escape flag
 		  buf2[buf2Index] = 0x7e;
 		  i++;
 		  arraySize--;
 	  }
-  else if (buf[i] == 0x7d && buf[i+1] == 0x5d) {
+  	else if (buf[i] == 0x7d && buf[i+1] == 0x5d) { //checks if it is an escape flag
 		  buf2[buf2Index] = 0x7d;
 		  arraySize--;
 		  i++;
 	  }
-	  else{
+	else{
 		  buf2[buf2Index] = buf[i];
 	  }
   }
   *size = arraySize;
-  buf2 = realloc(buf2,arraySize);
+  buf2 = realloc(buf2,arraySize); //reallocates memory to the returned buffer
   return buf2;
 }
